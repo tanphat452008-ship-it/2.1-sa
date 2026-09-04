@@ -26,6 +26,25 @@
     },
     {
       "client_info": {
+        "mobilesdk_app_id": "1:523887712659:android:9a5cb7892b432e8cf4f066",
+        "android_client_info": {
+          "package_name": "com.russia.game.test"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCejCFRR3o2-fp90d8-K9_3JVhI_L4Diq4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:523887712659:android:18a1bac91c3891b7f4f066",
         "android_client_info": {
           "package_name": "com.soft.project"
