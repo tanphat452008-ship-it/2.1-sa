@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "523887712659",
+    "project_id": "live-78e4d",
+    "storage_bucket": "live-78e4d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:523887712659:android:57f24b001fda34b9f4f066",
+        "android_client_info": {
+          "package_name": "com.russia.game"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCejCFRR3o2-fp90d8-K9_3JVhI_L4Diq4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:523887712659:android:18a1bac91c3891b7f4f066",
+        "android_client_info": {
+          "package_name": "com.soft.project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCejCFRR3o2-fp90d8-K9_3JVhI_L4Diq4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
