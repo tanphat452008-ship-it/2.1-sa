@@ -19,23 +19,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up JDK 17 (API 33 yêu cầu JDK cao hơn 11 để ổn định)
+      # 2. Set up JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # 3. Set up Android SDK (Fix lỗi Unexpected input)
+      # 3. Set up Android SDK
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # Đưa api-level và build-tools vào mục packages
           packages: "platforms;android-33 build-tools;33.0.2"
           cmdline-tools-version: 12266719
           accept-android-sdk-licenses: true
 
-      # 4. Enable long paths for Windows (Tránh lỗi đường dẫn quá dài)
+      # 4. Enable long paths for Windows
       - name: Enable long paths
         run: |
           git config --system core.longpaths true
@@ -46,24 +45,69 @@ jobs:
       - name: Build Debug APK
         shell: cmd
         run: |
-          call gradlew.bat clean assembleDebug --stacktrace
+          call gradlew.bat assembleDebug --stacktrace
 
-      - name: Rename APK
-        shell: pwsh
+      # 5.1. Tìm file .so
+      - name: Find native library
+        shell: powershell
         run: |
-          Move-Item app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/basibacity.apk
+          Write-Host "Searching for libAlyn_SAMPMOBILE.so..."
 
-      # 6. Upload lên GitHub Release
-      - name: Upload APK to Release
+          $files = Get-ChildItem -Path . -Recurse -Filter "libAlyn_SAMPMOBILE.so"
+
+          if ($files.Count -eq 0) {
+              Write-Error "libAlyn_SAMPMOBILE.so not found!"
+              exit 1
+          }
+
+          foreach ($file in $files) {
+              Write-Host "FOUND: $($file.FullName)"
+          }
+
+      # 5.2. Copy .so vào thư mục release
+      - name: Prepare Release Files
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "release-files" | Out-Null
+
+          # Copy APK
+          Copy-Item "app/build/outputs/apk/debug/*.apk" "release-files/" -Force
+
+          # Copy tất cả libAlyn_SAMPMOBILE.so tìm được
+          $files = Get-ChildItem -Path . -Recurse -Filter "libAlyn_SAMPMOBILE.so"
+
+          foreach ($file in $files) {
+              $abi = $file.Directory.Name
+              $outputName = "libAlyn_SAMPMOBILE-$abi.so"
+
+              Copy-Item $file.FullName "release-files/$outputName" -Force
+
+              Write-Host "Copied: $outputName"
+          }
+
+          Write-Host ""
+          Write-Host "===== RELEASE FILES ====="
+          Get-ChildItem "release-files"
+
+      # 6. Upload APK + .so lên GitHub Release
+      - name: Upload APK and SO to Release
         uses: softprops/action-gh-release@v2
-        if: success() # Chỉ chạy nếu build thành công
+        if: success()
         with:
-          files: app/build/outputs/apk/debug/basibacity.apk
+          files: |
+            release-files/*.apk
+            release-files/*.so
           tag_name: build-${{ github.run_number }}
-          name: Release Build v${{ github.run_number }}
+          name: Debug Build v${{ github.run_number }}
           body: |
             Bản build mới nhất từ nhánh ${{ github.ref_name }}.
-            Mã commit: ${{ github.sha }}
+
+            Mã commit:
+            ${{ github.sha }}
+
+            Files:
+            - APK Debug
+            - libAlyn_SAMPMOBILE.so
           draft: false
           prerelease: false
         env:
