@@ -26,7 +26,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 3. Set up Android SDK
+      # 3. Setup Gradle Cache (Cache dependencies & wrapper)
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # 4. Set up Android SDK
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -34,20 +38,29 @@ jobs:
           cmdline-tools-version: 12266719
           accept-android-sdk-licenses: true
 
-      # 4. Enable long paths for Windows
+      # 5. Enable long paths for Windows
       - name: Enable long paths
         run: |
           git config --system core.longpaths true
           reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
         shell: powershell
 
-      # 5. Build APK
+      # 6. Cache C++ / CMake NDK build outputs
+      - name: Cache C++ Build (.cxx)
+        uses: actions/cache@v4
+        with:
+          path: app/.cxx
+          key: ${{ runner.os }}-cxx-${{ hashFiles('app/src/main/cpp/**') }}
+          restore-keys: |
+            ${{ runner.os }}-cxx-
+
+      # 7. Build APK với --build-cache
       - name: Build Debug APK
         shell: cmd
         run: |
-          call gradlew.bat assembleDebug --stacktrace
+          call gradlew.bat assembleDebug --build-cache --stacktrace
 
-      # 5.1. Tìm file .so
+      # 8. Tìm file .so
       - name: Find native library
         shell: powershell
         run: |
@@ -64,7 +77,7 @@ jobs:
               Write-Host "FOUND: $($file.FullName)"
           }
 
-      # 5.2. Copy .so vào thư mục release
+      # 9. Copy .so vào thư mục release
       - name: Prepare Release Files
         shell: powershell
         run: |
@@ -89,7 +102,7 @@ jobs:
           Write-Host "===== RELEASE FILES ====="
           Get-ChildItem "release-files"
 
-      # 6. Upload APK + .so lên GitHub Release
+      # 10. Upload APK + .so lên GitHub Release
       - name: Upload APK and SO to Release
         uses: softprops/action-gh-release@v2
         if: success()
