@@ -17,7 +17,8 @@ android {
 
             externalNativeBuild {
                 cmake {
-                    cppFlags '-fvisibility=hidden'
+                    // Thêm -w để tắt cảnh báo ở bản release
+                    cppFlags '-fvisibility=hidden -w'
                 }
             }
         }
@@ -53,6 +54,14 @@ android {
         versionCode 1000
 
         multiDexEnabled = true
+
+        // Tắt toàn bộ C/C++ Warnings giúp nhẹ log và không bị nghẽn GitHub Actions
+        externalNativeBuild {
+            cmake {
+                cppFlags "-w"
+                cFlags "-w"
+            }
+        }
 
         lintOptions {
             checkReleaseBuilds false
@@ -92,7 +101,8 @@ android {
         debug {
             externalNativeBuild {
                 cmake {
-                    cppFlags '-g'
+                    // Bổ sung -w cho debug mode
+                    cppFlags '-g -w'
                 }
             }
 
@@ -141,5 +151,4 @@ dependencies {
     implementation 'androidx.viewpager2:viewpager2:1.1.0'
     implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.0'
     implementation "com.github.skydoves:colorpickerview:2.3.0"
-    apply plugin: 'com.google.gms.google-services'
 }
