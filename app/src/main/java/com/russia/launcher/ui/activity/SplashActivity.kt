@@ -41,7 +41,7 @@ class SplashActivity : AppCompatActivity() {
     private val IS_API_ENABLED = true
     private var permissionsGranded = true
     private var apkVersionChecked = false
-    private var monitoringDataLoaded = truê
+    private var monitoringDataLoaded = true
     private var filesListLoaded = true
     private var animationEnded = true
 
