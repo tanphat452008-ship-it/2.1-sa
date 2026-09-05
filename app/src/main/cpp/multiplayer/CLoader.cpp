@@ -14,10 +14,13 @@
 #include "java_systems/Tab.h"
 #include "java_systems/GuiWrapper.h"
 #include "JavaGui.h"
-#include "java_systems/Authorization.h"
-#include "java_systems/Registration.h"
+
 void CLoader::loadBassLib()
 {
+   // LoadBassLibrary();
+   // BASS_Init(-1, 44100, BASS_DEVICE_MONO | BASS_DEVICE_3D);
+   // BASS_Set3DFactors(1, 0.15, 0);
+   // BASS_Apply3D();
 }
 
 void CLoader::initCrashLytics()
@@ -29,6 +32,7 @@ void CLoader::initCrashLytics()
     firebase::crashlytics::SetCustomKey("Nick", CSettings::m_Settings.szNickName);
 
     char str[100];
+
     sprintf(str, "0x%x", g_libGTASA);
     firebase::crashlytics::SetCustomKey("libGTASA.so", str);
 
@@ -41,16 +45,15 @@ void CLoader::loadSetting()
     CSettings::LoadSettings(nullptr);
 }
 
-// BỌC AN TOÀN: Kiểm tra Exception và NULL để không bao giờ bị crash NewGlobalRef
+// BỌC AN TOÀN: Tránh crash NewGlobalRef khi không tìm thấy class Java
 jclass LinkJavaClass(jclass localObj) {
     auto env = CJavaWrapper::GetEnv();
-    
-    // Nếu phía Java bị lỗi không tìm thấy Class (ClassNotFoundException) -> Xóa lỗi
+    if (!env) return nullptr;
+
     if (env->ExceptionCheck()) {
         env->ExceptionClear();
     }
 
-    // Nếu con trỏ localObj bị NULL -> Trả về nullptr thay vì gọi NewGlobalRef gây crash
     if (localObj == nullptr) {
         return nullptr;
     }
@@ -65,13 +68,10 @@ void CLoader::initJavaClasses(JavaVM* pjvm) {
     if (pjvm->GetEnv((void**)&env, JNI_VERSION_1_6) != JNI_OK) {
         return;
     }
-    CJavaGui::clazz = LinkJavaClass(env->FindClass("com/game/russia/NewUiList"));
 
-    // 2. Bảng Tab danh sách người chơi
-    CTab::clazz = LinkJavaClass(env->FindClass("com/game/russia/gui/tab/Tab"));
+    // 1. Giao diện cơ bản (Khung Wrapper chứa HUD, Chat, Dialog)
+    CJavaGui::clazz = LinkJavaClass(env->FindClass("com/russia/game/NewUiList"));
 
-    // 3. Hệ thống Chat / Đăng nhập cơ bản (nếu APK của bạn dùng các class này)
-    CAuthorization::clazz = LinkJavaClass(env->FindClass("com/game/russia/gui/Authorization"));
-    CRegistration::clazz = LinkJavaClass(env->FindClass("com/game/russia/gui/Registration"));
-
+    // 2. Bảng Tab (Danh sách người chơi)
+    CTab::clazz = LinkJavaClass(env->FindClass("com/russia/game/gui/tab/Tab"));
 }
