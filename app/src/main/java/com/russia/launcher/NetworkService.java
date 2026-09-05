@@ -1,7 +1,5 @@
 package com.russia.launcher;
 
-import static com.russia.launcher.config.Config.FILE_INFO_URL;
-
 import com.russia.launcher.async.dto.response.GameFileInfoDto;
 import com.russia.launcher.async.dto.response.LatestVersionInfoDto;
 import com.russia.launcher.async.dto.response.LoaderSliderInfoResponseDto;
@@ -10,12 +8,38 @@ import com.russia.launcher.async.dto.response.MonitoringData;
 import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Headers;
+
 public interface NetworkService {
-    String FILES_BASE_ADR = "https://files.liverussia.online/gamecache/";
-    String APK_URL = "https://files.liverussia.online/apk/release/app-ver_release-release.apk";
+
+    // =========================================================
+    // SARP DATA SERVER
+    // =========================================================
+
+    String FILES_BASE_ADR =
+            "http://sa-rp.net:8642/data-mobile3/";
+
+    // =========================================================
+    // GAME FILE LIST
+    // =========================================================
+
+    String FILE_INFO_URL =
+            "http://sa-rp.net:8642/data-mobile3/file_sort.json";
+
+
+    // =========================================================
+    // APK
+    // =========================================================
+
+    String APK_URL =
+            "https://files.liverussia.online/apk/release/app-ver_release-release.apk";
+
+
+    // =========================================================
+    // MONITORING
+    // =========================================================
 
     @Headers("Content-Type: application/json")
-    @GET("https://api.liverussia.online/old_data.php")
+    @GET("http://sa-rp.net:8642/data-mobile/")
     Call<MonitoringData> getMonitoringData();
 
     @Headers("Content-Type: application/json")
@@ -23,10 +47,10 @@ public interface NetworkService {
     Call<GameFileInfoDto> getFilesList();
 
     @Headers("Content-Type: application/json")
-    @GET("https://files.liverussia.online/loader_slider/texts.json")
+    @GET("https://sarphost.sa-rp.net/SARP-MB-nguyenvantinh/SARP-Ver2/texts.json")
     Call<LoaderSliderInfoResponseDto> getLoaderSliderInfo();
 
     @Headers("Content-Type: application/json")
-    @GET("https://files.liverussia.online/apk/release/apk_info.php")
+    @GET("https://sarphost.sa-rp.net/SARP-MB-nguyenvantinh/SARP-Ver2/apk_info.json")
     Call<LatestVersionInfoDto> getLatestVersionInfoDto();
 }
