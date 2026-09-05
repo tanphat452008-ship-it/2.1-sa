@@ -64,7 +64,7 @@ public class Config {
             "/SAMP/settings.ini";
 
     public static final String SETTINGS_FILE_PATH =
-            "/gta_sa.set"
+            "/gta_sa.set";
     public static String createBillingUri(
             String serverId,
             String serverName,
