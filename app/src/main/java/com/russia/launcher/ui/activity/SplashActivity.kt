@@ -35,21 +35,19 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
-
 class SplashActivity : AppCompatActivity() {
+
+    
+    private val IS_API_ENABLED = false
     private var permissionsGranded = false
     private var apkVersionChecked = false
     private var monitoringDataLoaded = false
     private var filesListLoaded = false
     private var animationEnded = false
-    // var gpuDetected             = false
 
     private val REQUEST_ID = 228
     private val permissionList = arrayOf(
-//        Manifest.permission.READ_EXTERNAL_STORAGE,
-//        Manifest.permission.WRITE_EXTERNAL_STORAGE,
         Manifest.permission.RECORD_AUDIO,
-        //Manifest.permission.POST_NOTIFICATIONS // 13+ bug
     )
 
     private var networkService: NetworkService
@@ -59,15 +57,15 @@ class SplashActivity : AppCompatActivity() {
         val gson = GsonBuilder().setLenient().create()
 
         val okHttpClient = OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS) // Таймаут на подключение
-            .readTimeout(10, TimeUnit.SECONDS)    // Таймаут на чтение
-            .writeTimeout(10, TimeUnit.SECONDS)   // Таймаут на запись
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
             .build()
 
         val retrofit = Retrofit.Builder()
             .baseUrl(Config.LIVE_RUSSIA_RESOURCE_SERVER_URL)
             .addConverterFactory(GsonConverterFactory.create(gson))
-            .client(okHttpClient) // Устанавливаем OkHttpClient с таймаутами
+            .client(okHttpClient)
             .build()
 
         networkService = retrofit.create(NetworkService::class.java)
@@ -100,7 +98,7 @@ class SplashActivity : AppCompatActivity() {
             }
         })
 
-        if (!isOnline) {
+        if (!isOnline && IS_API_ENABLED) {
             val builder = AlertDialog.Builder(this)
             builder.setTitle("Ошибка!")
                 .setMessage("Нет соединения с интернетом")
@@ -111,24 +109,36 @@ class SplashActivity : AppCompatActivity() {
             runOnUiThread { builder.create().show() }
         }
 
-        ServersList.load(
-            this,
-            networkService,
-            object : MonitoringDataLoaderListener {
-                override fun monitoringDataLoadedSuccess() {
-                    monitoringDataLoaded = true
-                    startIfReady()
+        if (IS_API_ENABLED) {
+            ServersList.load(
+                this,
+                networkService,
+                object : MonitoringDataLoaderListener {
+                    override fun monitoringDataLoadedSuccess() {
+                        monitoringDataLoaded = true
+                        startIfReady()
+                    }
                 }
-            }
-        )
+            )
+            loadFilesList()
+            checkVersion()
+        } else {
+            // Tắt API: Đánh dấu thành công toàn bộ bước kiểm tra
+            monitoringDataLoaded = true
+            filesListLoaded = true
+            apkVersionChecked = true
+        }
 
-        loadFilesList()
-        checkVersion()
         checkPermissions()
-
     }
 
     private fun loadFilesList() {
+        if (!IS_API_ENABLED) {
+            filesListLoaded = true
+            startIfReady()
+            return
+        }
+
         val call = networkService.filesList
 
         call?.enqueue(object : Callback<GameFileInfoDto> {
@@ -141,7 +151,7 @@ class SplashActivity : AppCompatActivity() {
             }
 
             override fun onFailure(call: Call<GameFileInfoDto>, t: Throwable) {
-                Log.d("tag", "onFailure = " + t.message);
+                Log.d("tag", "onFailure = " + t.message)
                 filesListLoaded = true
                 startIfReady()
             }
@@ -183,14 +193,20 @@ class SplashActivity : AppCompatActivity() {
     }
 
     fun startIfReady() {
-        if (permissionsGranded && apkVersionChecked && filesListLoaded && monitoringDataLoaded && animationEnded/*&& gpuDetected*/) {
+        if (permissionsGranded && apkVersionChecked && filesListLoaded && monitoringDataLoaded && animationEnded) {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
         }
     }
 
     private fun checkVersion() {
-        val latestVersionInfoCall = networkService?.latestVersionInfoDto
+        if (!IS_API_ENABLED) {
+            apkVersionChecked = true
+            startIfReady()
+            return
+        }
+
+        val latestVersionInfoCall = networkService.latestVersionInfoDto
         latestVersionInfoCall?.enqueue(object : Callback<LatestVersionInfoDto?> {
             override fun onResponse(call: Call<LatestVersionInfoDto?>, response: Response<LatestVersionInfoDto?>) {
                 if (!response.isSuccessful) {
@@ -216,7 +232,6 @@ class SplashActivity : AppCompatActivity() {
         })
     }
 
-
     private val currentVersion: Int
         get() {
             val pm = this.packageManager
@@ -233,42 +248,4 @@ class SplashActivity : AppCompatActivity() {
     public override fun onDestroy() {
         super.onDestroy()
     }
-
 }
-
-//class GpuInfoActivity(activity: SplashActivity) {
-//
-//    private var mGlSurfaceView: GLSurfaceView? = null
-//    private val mGlRenderer: Renderer = object : Renderer {
-//        override fun onSurfaceCreated(gl: GL10?, config: javax.microedition.khronos.egl.EGLConfig?) {
-//            MainUtils.usselesTex.remove(".dxt")
-////            val glExtensions = gl?.glGetString(GL10.GL_EXTENSIONS)
-////            if (glExtensions!!.contains("GL_IMG_texture_compression_pvrtc")) {
-////                MainUtils.usselesTex.remove(".pvr")
-////            } else if (glExtensions.contains("GL_EXT_texture_compression_dxt1") || glExtensions.contains("GL_EXT_texture_compression_s3tc") || glExtensions.contains("GL_AMD_compressed_ATC_texture")) {
-////                MainUtils.usselesTex.remove(".dxt")
-////            } else {
-////                MainUtils.usselesTex.remove(".etc")
-////            }
-////
-//            activity.gpuDetected = true
-//            activity.startIfReady()
-//        }
-//
-//        override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
-//            // TODO Auto-generated method stub
-//        }
-//
-//        override fun onDrawFrame(gl: GL10) {
-//            // TODO Auto-generated method stub
-//        }
-//    }
-//
-//    init {
-//        mGlSurfaceView = GLSurfaceView(activity)
-//        mGlSurfaceView!!.setRenderer(mGlRenderer)
-//        activity.findViewById<FrameLayout>(R.id.activitySplash).addView(mGlSurfaceView)
-//        mGlSurfaceView!!.layoutParams.width = 1
-//        mGlSurfaceView!!.layoutParams.height = 1
-//    }
-//}
