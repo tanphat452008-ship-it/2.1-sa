@@ -14,7 +14,52 @@ extern "C" JavaVM *javaVM;
 #include "java_systems/Registration.h"
 #include "java_systems/BusStation.h"
 
+#include "..//CDebugInfo.h"
+#include "chatwindow.h"
+#include "java_systems/Medic.h"
+#include "java_systems/Speedometr.h"
+#include "java_systems/casino/Dice.h"
+#include "java_systems/AutoShop.h"
+#include "java_systems/ChooseSpawn.h"
+#include "java_systems/Authorization.h"
+#include "java_systems/GuiWrapper.h"
+#include "GuiWrapper.h"
+
 extern CNetGame *pNetGame;
+
+// Pointer toàn cục an toàn
+CJavaWrapper *g_pJavaWrapper = nullptr;
+
+// ============================================================================
+// HELPER AN TOÀN TRÁNH CRASH JNI
+// ============================================================================
+
+// Kiểm tra và xóa ngoại lệ JNI đang treo (Tránh gây crash JVM ở các lệnh tiếp theo)
+static bool CheckAndClearException(JNIEnv* env, const char* actionName) {
+    if (!env) return false;
+    if (env->ExceptionCheck()) {
+        Log("JNI Exception trapped in [%s]", actionName ? actionName : "Unknown");
+        env->ExceptionClear();
+        return true;
+    }
+    return false;
+}
+
+// Lấy MethodID an toàn kèm kiểm tra Exception
+static jmethodID SafeGetMethodID(JNIEnv* env, jclass clazz, const char* name, const char* sig) {
+    if (!env || !clazz || !name || !sig) return nullptr;
+    
+    jmethodID id = env->GetMethodID(clazz, name, sig);
+    if (CheckAndClearException(env, name)) {
+        Log("Failed to find JNI Method: %s with signature: %s", name, sig);
+        return nullptr;
+    }
+    return id;
+}
+
+// ============================================================================
+// CJAVAWAPPER IMPLEMENTATION
+// ============================================================================
 
 JNIEnv *CJavaWrapper::GetEnv() {
     if (!javaVM) {
@@ -26,16 +71,12 @@ JNIEnv *CJavaWrapper::GetEnv() {
     int getEnvStat = javaVM->GetEnv((void **) &env, JNI_VERSION_1_6);
 
     if (getEnvStat == JNI_EDETACHED) {
-        Log("GetEnv: not attached, attaching...");
         if (javaVM->AttachCurrentThread(&env, NULL) != 0) {
-            Log("Failed to attach thread");
+            Log("GetEnv: Failed to attach thread");
             return nullptr;
         }
-    } else if (getEnvStat == JNI_EVERSION) {
-        Log("GetEnv: JNI version not supported");
-        return nullptr;
-    } else if (getEnvStat == JNI_ERR) {
-        Log("GetEnv: JNI_ERR");
+    } else if (getEnvStat == JNI_EVERSION || getEnvStat == JNI_ERR) {
+        Log("GetEnv: JNI Error status code: %d", getEnvStat);
         return nullptr;
     }
 
@@ -50,7 +91,6 @@ struct ThreadLaunchData {
 };
 
 void* CJavaWrapper::NVThreadSpawnProc(void* arg) {
-    // 1. Kiểm tra an toàn tham số đầu vào
     if (!arg) {
         Log("NVThreadSpawnProc: Critical Error - arg is null!");
         return nullptr;
@@ -58,7 +98,6 @@ void* CJavaWrapper::NVThreadSpawnProc(void* arg) {
 
     std::unique_ptr<ThreadLaunchData> data(static_cast<ThreadLaunchData*>(arg));
 
-    // 2. Kiểm tra con trỏ hàm
     if (!data->func) {
         Log("NVThreadSpawnProc: Critical Error - data->func is null!");
         return nullptr;
@@ -67,7 +106,6 @@ void* CJavaWrapper::NVThreadSpawnProc(void* arg) {
     bool attached = false;
     JNIEnv* env = nullptr;
 
-    // 3. Kiểm tra an toàn JavaVM
     if (javaVM) {
         jint status = javaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
         if (status == JNI_EDETACHED) {
@@ -81,19 +119,21 @@ void* CJavaWrapper::NVThreadSpawnProc(void* arg) {
         Log("NVThreadSpawnProc: Warning - javaVM is null");
     }
 
-    // 4. Đặt tên Thread an toàn
     if (env && data->thread_name[0] != '\0') {
         jclass threadClass = env->FindClass("java/lang/Thread");
         if (threadClass) {
-            jmethodID currentThread = env->GetStaticMethodID(threadClass, "currentThread", "()Ljava/lang/Thread;");
-            jmethodID setName = env->GetMethodID(threadClass, "setName", "(Ljava/lang/String;)V");
+            jmethodID currentThread = SafeGetMethodID(env, threadClass, "currentThread", "()Ljava/lang/Thread;");
+            jmethodID setName = SafeGetMethodID(env, threadClass, "setName", "(Ljava/lang/String;)V");
 
             if (currentThread && setName) {
                 jobject threadObj = env->CallStaticObjectMethod(threadClass, currentThread);
+                CheckAndClearException(env, "currentThread");
+
                 if (threadObj) {
                     jstring nameStr = env->NewStringUTF(data->thread_name);
                     if (nameStr) {
                         env->CallVoidMethod(threadObj, setName, nameStr);
+                        CheckAndClearException(env, "setName");
                         env->DeleteLocalRef(nameStr);
                     }
                     env->DeleteLocalRef(threadObj);
@@ -103,40 +143,195 @@ void* CJavaWrapper::NVThreadSpawnProc(void* arg) {
         }
     }
 
-    // 5. Thực thi hàm chính
     void* result = nullptr;
     if (data->func) {
         result = data->func(data->thread_struct);
     }
 
-    // 6. Detach thread an toàn
     if (attached && javaVM) {
         javaVM->DetachCurrentThread();
     }
     return result;
 }
 
-void CJavaWrapper::ShowClientSettings() {
-    JNIEnv *env = GetEnv();
+CJavaWrapper::CJavaWrapper(JNIEnv *env, jobject activity) {
+    // Khởi tạo tất cả biến con trỏ về nullptr trước
+    this->activity = nullptr;
+    this->s_ShowClientSettings = nullptr;
+    this->j_Vibrate = nullptr;
+    this->s_setPauseState = nullptr;
+    this->s_ExitGame = nullptr;
+
     if (!env || !activity) {
-        Log("ShowClientSettings: env or activity is null");
+        Log("CJavaWrapper constructor: env or activity is null");
         return;
     }
 
-    env->CallVoidMethod(activity, s_ShowClientSettings);
-    EXCEPTION_CHECK(env);
+    this->activity = env->NewGlobalRef(activity);
+    if (!this->activity) {
+        Log("CJavaWrapper constructor: NewGlobalRef failed");
+        return;
+    }
+
+    jclass nvEventClass = env->GetObjectClass(activity);
+    if (!nvEventClass) {
+        Log("CJavaWrapper constructor: nvEventClass is null");
+        CheckAndClearException(env, "GetObjectClass");
+        return;
+    }
+
+    // Lấy MethodID an toàn, chống Crash nếu Java method không tồn tại
+    s_ShowClientSettings = SafeGetMethodID(env, nvEventClass, "showClientSettings", "()V");
+    j_Vibrate            = SafeGetMethodID(env, nvEventClass, "goVibrate", "(I)V");
+    s_setPauseState      = SafeGetMethodID(env, nvEventClass, "setPauseState", "(Z)V");
+    s_ExitGame           = SafeGetMethodID(env, nvEventClass, "exitGame", "()V");
+
+    env->DeleteLocalRef(nvEventClass);
 }
 
-#include "..//CDebugInfo.h"
-#include "chatwindow.h"
-#include "java_systems/Medic.h"
-#include "java_systems/Speedometr.h"
-#include "java_systems/casino/Dice.h"
-#include "java_systems/AutoShop.h"
-#include "java_systems/ChooseSpawn.h"
-#include "java_systems/Authorization.h"
-#include "java_systems/GuiWrapper.h"
-#include "GuiWrapper.h"
+CJavaWrapper::~CJavaWrapper() {
+    JNIEnv *pEnv = GetEnv();
+    if (pEnv && this->activity) {
+        pEnv->DeleteGlobalRef(this->activity);
+        this->activity = nullptr;
+    }
+}
+
+void CJavaWrapper::ShowClientSettings() {
+    JNIEnv *env = GetEnv();
+    if (!env || !this->activity || !s_ShowClientSettings) {
+        Log("ShowClientSettings: Invalid environment, activity, or MethodID");
+        return;
+    }
+
+    env->CallVoidMethod(this->activity, s_ShowClientSettings);
+    CheckAndClearException(env, "ShowClientSettings");
+}
+
+void CJavaWrapper::Vibrate(int milliseconds) {
+    JNIEnv *env = GetEnv();
+    if (!env || !this->activity || !j_Vibrate) {
+        Log("Vibrate: Invalid environment, activity, or MethodID");
+        return;
+    }
+
+    env->CallVoidMethod(this->activity, this->j_Vibrate, milliseconds);
+    CheckAndClearException(env, "Vibrate");
+}
+
+void CJavaWrapper::SetPauseState(bool a1) {
+    JNIEnv *env = GetEnv();
+    if (!env || !this->activity || !s_setPauseState) {
+        Log("SetPauseState: Invalid environment, activity, or MethodID");
+        return;
+    }
+
+    env->CallVoidMethod(this->activity, this->s_setPauseState, a1);
+    CheckAndClearException(env, "SetPauseState");
+}
+
+void CJavaWrapper::hideLoadingScreen() {
+    JNIEnv *env = GetEnv();
+    if (!env || !this->activity) {
+        Log("hideLoadingScreen: No env or activity null");
+        return;
+    }
+
+    jclass clazz = env->GetObjectClass(this->activity);
+    if (!clazz) {
+        Log("hideLoadingScreen: Failed to get class from activity");
+        CheckAndClearException(env, "GetObjectClass");
+        return;
+    }
+
+    jmethodID method = SafeGetMethodID(env, clazz, "hideLoadingScreen", "()V");
+    if (method) {
+        env->CallVoidMethod(this->activity, method);
+        CheckAndClearException(env, "hideLoadingScreen call");
+    }
+
+    env->DeleteLocalRef(clazz);
+}
+
+void CJavaWrapper::ExitGame() {
+    JNIEnv *env = GetEnv();
+    if (!env || !this->activity || !s_ExitGame) {
+        Log("ExitGame: Invalid environment, activity, or MethodID");
+        return;
+    }
+
+    env->CallVoidMethod(this->activity, this->s_ExitGame);
+    CheckAndClearException(env, "ExitGame");
+}
+
+void CJavaWrapper::ClearScreen() {
+    Log("ClearScreen");
+
+    CSkinShop::Destroy();
+    CHUD::hideTargetNotify();
+    CAuthorization::Destroy();
+    CChooseSpawn::Destroy();
+    CRegistration::Destroy();
+    CSpeedometr::Destroy();
+    CAutoShop::toggle(false);
+    CBusStation::Destroy();
+    CHUD::toggleGps(false);
+    CHUD::toggleGreenZone(false);
+    CMedic::hide();
+    CDice::Destroy();
+}
+
+void CJavaWrapper::SendBuffer(const std::string& text) const {
+    if (text.empty()) return;
+
+    JNIEnv *env = GetEnv();
+    if (!env || !activity) return;
+
+    jstring jstr = env->NewStringUTF(text.c_str());
+    if (!jstr) {
+        CheckAndClearException(env, "SendBuffer NewStringUTF");
+        return;
+    }
+
+    jclass clazz = env->GetObjectClass(activity);
+    if (clazz) {
+        jmethodID method = SafeGetMethodID(env, clazz, "copyTextToBuffer", "(Ljava/lang/String;)V");
+        if (method) {
+            env->CallVoidMethod(activity, method, jstr);
+            CheckAndClearException(env, "copyTextToBuffer call");
+        }
+        env->DeleteLocalRef(clazz);
+    }
+    env->DeleteLocalRef(jstr);
+}
+
+void CJavaWrapper::OpenUrl(const std::string& url) const {
+    if (url.empty()) return;
+
+    JNIEnv *env = GetEnv();
+    if (!env || !activity) return;
+
+    jstring jstr = env->NewStringUTF(url.c_str());
+    if (!jstr) {
+        CheckAndClearException(env, "OpenUrl NewStringUTF");
+        return;
+    }
+
+    jclass clazz = env->GetObjectClass(activity);
+    if (clazz) {
+        jmethodID method = SafeGetMethodID(env, clazz, "openUrl", "(Ljava/lang/String;)V");
+        if (method) {
+            env->CallVoidMethod(activity, method, jstr);
+            CheckAndClearException(env, "openUrl call");
+        }
+        env->DeleteLocalRef(clazz);
+    }
+    env->DeleteLocalRef(jstr);
+}
+
+// ============================================================================
+// NATIVE JNI EXPORTS
+// ============================================================================
 
 extern "C"
 {
@@ -183,178 +378,32 @@ JNIEXPORT void JNICALL
 Java_com_nvidia_devtech_NvEventQueueActivity_onAuctionButtonClick(JNIEnv *pEnv, jobject thiz, jint btnid) {
     if (pNetGame) pNetGame->SendCustomPacket(251, 52, btnid);
 }
-}
 
-void CJavaWrapper::Vibrate(int milliseconds) {
-    JNIEnv *env = GetEnv();
-    if (!env || !this->activity) {
-        Log("Vibrate: No env or activity null");
-        return;
-    }
-    env->CallVoidMethod(this->activity, this->j_Vibrate, milliseconds);
-}
-
-void CJavaWrapper::SetPauseState(bool a1) {
-    JNIEnv *env = GetEnv();
-    if (!env || !this->activity) {
-        Log("SetPauseState: No env or activity null");
-        return;
-    }
-    env->CallVoidMethod(this->activity, this->s_setPauseState, a1);
-}
-
-void CJavaWrapper::hideLoadingScreen() {
-    JNIEnv *env = GetEnv();
-    if (!env || !this->activity) {
-        Log("hideLoadingScreen: No env or activity null");
-        return;
-    }
-
-    jclass clazz = env->GetObjectClass(this->activity);
-    if (!clazz) {
-        Log("hideLoadingScreen: Failed to get class from activity");
-        return;
-    }
-
-    jmethodID method = env->GetMethodID(clazz, "hideLoadingScreen", "()V");
-    
-    // Kiểm tra nếu không tìm thấy method (tránh crash ứng dụng)
-    if (env->ExceptionCheck()) {
-        Log("hideLoadingScreen: Method 'hideLoadingScreen()V' not found in Java class");
-        env->ExceptionClear();
-        env->DeleteLocalRef(clazz);
-        return;
-    }
-
-    if (method) {
-        env->CallVoidMethod(this->activity, method);
-        
-        // Kiểm tra xem hàm Java có quăng ra Exception nào khi đang chạy không
-        if (env->ExceptionCheck()) {
-            Log("hideLoadingScreen: Exception occurred during Java method call");
-            env->ExceptionClear();
-        }
-    }
-
-    env->DeleteLocalRef(clazz);
-}
-
-
-void CJavaWrapper::ExitGame() {
-    JNIEnv *env = GetEnv();
-    if (!env || !this->activity) {
-        Log("ExitGame: No env or activity null");
-        return;
-    }
-    env->CallVoidMethod(this->activity, this->s_ExitGame);
-}
-
-void CJavaWrapper::ClearScreen() {
-    Log("ClearScreen");
-
-    CSkinShop::Destroy();
-    CHUD::hideTargetNotify();
-    CAuthorization::Destroy();
-    CChooseSpawn::Destroy();
-    CRegistration::Destroy();
-    CSpeedometr::Destroy();
-    CAutoShop::toggle(false);
-    CBusStation::Destroy();
-    CHUD::toggleGps(false);
-    CHUD::toggleGreenZone(false);
-    CMedic::hide();
-    CDice::Destroy();
-}
-
-CJavaWrapper::CJavaWrapper(JNIEnv *env, jobject activity) {
-    if (!env || !activity) {
-        Log("CJavaWrapper constructor: env or activity is null");
-        return;
-    }
-
-    this->activity = env->NewGlobalRef(activity);
-
-    jclass nvEventClass = env->GetObjectClass(activity);
-    if (!nvEventClass) {
-        Log("nvEventClass null");
-        return;
-    }
-
-    s_ShowClientSettings = env->GetMethodID(nvEventClass, "showClientSettings", "()V");
-    j_Vibrate = env->GetMethodID(nvEventClass, "goVibrate", "(I)V");
-    s_setPauseState = env->GetMethodID(nvEventClass, "setPauseState", "(Z)V");
-    s_ExitGame = env->GetMethodID(nvEventClass, "exitGame", "()V");
-
-    env->DeleteLocalRef(nvEventClass);
-}
-
-CJavaWrapper::~CJavaWrapper() {
-    JNIEnv *pEnv = GetEnv();
-    if (pEnv && this->activity) {
-        pEnv->DeleteGlobalRef(this->activity);
-        this->activity = nullptr;
-    }
-}
-
-void CJavaWrapper::SendBuffer(const std::string& text) const {
-    JNIEnv *env = GetEnv();
-    if (!env || !activity) return;
-
-    jstring jstr = env->NewStringUTF(text.c_str());
-    if (!jstr) return;
-
-    jclass clazz = env->GetObjectClass(activity);
-    if (clazz) {
-        jmethodID method = env->GetMethodID(clazz, "copyTextToBuffer", "(Ljava/lang/String;)V");
-        if (method) {
-            env->CallVoidMethod(activity, method, jstr);
-        }
-        env->DeleteLocalRef(clazz);
-    }
-    env->DeleteLocalRef(jstr);
-}
-
-void CJavaWrapper::OpenUrl(const std::string& url) const {
-    JNIEnv *env = GetEnv();
-    if (!env || !activity) return;
-
-    jstring jstr = env->NewStringUTF(url.c_str());
-    if (!jstr) return;
-
-    jclass clazz = env->GetObjectClass(activity);
-    if (clazz) {
-        jmethodID method = env->GetMethodID(clazz, "openUrl", "(Ljava/lang/String;)V");
-        if (method) {
-            env->CallVoidMethod(activity, method, jstr);
-        }
-        env->DeleteLocalRef(clazz);
-    }
-    env->DeleteLocalRef(jstr);
-}
-
-CJavaWrapper *g_pJavaWrapper = nullptr;
-
-extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_core_Samp_00024Companion_playUrlSound(JNIEnv *env, jobject clazz, jstring jurl) {
     if (!env || !jurl) return;
 
     const char *url = env->GetStringUTFChars(jurl, nullptr);
-    if (!url) return;
+    if (!url) {
+        CheckAndClearException(env, "playUrlSound GetStringUTFChars");
+        return;
+    }
 
-    char temp[888];
-    strncpy(temp, url, sizeof(temp) - 1);
-    temp[sizeof(temp) - 1] = '\0';
-
-    CAudioStreamPool::PostToAudioThread([=] {
-        auto stream = BASS_StreamCreateURL(temp, 0, BASS_STREAM_AUTOFREE | BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE, nullptr, 0);
-        BASS_ChannelPlay(stream, false);
-    });
-
+    // Sao chép an toàn sang std::string
+    std::string urlStr(url);
     env->ReleaseStringUTFChars(jurl, url);
+
+    if (urlStr.empty()) return;
+
+    // Chuyển string theo dạng Value (Copy) vào Lambda Thread để tránh Dangling Pointer hay Stack Overflow
+    CAudioStreamPool::PostToAudioThread([urlStr]() {
+        auto stream = BASS_StreamCreateURL(urlStr.c_str(), 0, BASS_STREAM_AUTOFREE | BASS_STREAM_BLOCK | BASS_STREAM_RESTRATE, nullptr, 0);
+        if (stream) {
+            BASS_ChannelPlay(stream, false);
+        }
+    });
 }
 
-extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_Menu_nativeSendMenuButt(JNIEnv *env, jobject thiz, jint butt_id) {
     if (!pNetGame) {
@@ -377,4 +426,5 @@ Java_com_russia_game_gui_Menu_nativeSendMenuButt(JNIEnv *env, jobject thiz, jint
         case 12: pNetGame->SendChatCommand("/livepass"); break;
         default: break;
     }
+}
 }
