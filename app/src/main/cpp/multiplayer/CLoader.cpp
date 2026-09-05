@@ -14,7 +14,8 @@
 #include "java_systems/Tab.h"
 #include "java_systems/GuiWrapper.h"
 #include "JavaGui.h"
-
+#include "java_systems/Authorization.h"
+#include "java_systems/Registration.h"
 void CLoader::loadBassLib()
 {
 }
