@@ -209,15 +209,36 @@ void CJavaWrapper::hideLoadingScreen() {
         Log("hideLoadingScreen: No env or activity null");
         return;
     }
+
     jclass clazz = env->GetObjectClass(this->activity);
-    if (clazz) {
-        jmethodID method = env->GetMethodID(clazz, "hideLoadingScreen", "()V");
-        if (method) {
-            env->CallVoidMethod(this->activity, method);
-        }
-        env->DeleteLocalRef(clazz);
+    if (!clazz) {
+        Log("hideLoadingScreen: Failed to get class from activity");
+        return;
     }
+
+    jmethodID method = env->GetMethodID(clazz, "hideLoadingScreen", "()V");
+    
+    // Kiểm tra nếu không tìm thấy method (tránh crash ứng dụng)
+    if (env->ExceptionCheck()) {
+        Log("hideLoadingScreen: Method 'hideLoadingScreen()V' not found in Java class");
+        env->ExceptionClear();
+        env->DeleteLocalRef(clazz);
+        return;
+    }
+
+    if (method) {
+        env->CallVoidMethod(this->activity, method);
+        
+        // Kiểm tra xem hàm Java có quăng ra Exception nào khi đang chạy không
+        if (env->ExceptionCheck()) {
+            Log("hideLoadingScreen: Exception occurred during Java method call");
+            env->ExceptionClear();
+        }
+    }
+
+    env->DeleteLocalRef(clazz);
 }
+
 
 void CJavaWrapper::ExitGame() {
     JNIEnv *env = GetEnv();
