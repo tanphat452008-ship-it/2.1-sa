@@ -6,31 +6,35 @@ plugins {
 }
 
 android {
-    flavorDimensions 'version'
-    productFlavors {
-        ver_release {
-            dimension "version"
-            manifestPlaceholders = [appName:"MOBILE RUSSIA"]
-            firebaseCrashlytics {
-                nativeSymbolUploadEnabled true
-            }
+    compileSdk 36
 
-            externalNativeBuild {
-                cmake {
-                    // Thêm -w để tắt cảnh báo ở bản release
-                    cppFlags '-fvisibility=hidden -w'
-                }
+    defaultConfig {
+        namespace 'com.russia.game'
+        applicationId "com.russia.game"
+        minSdkVersion 26
+        targetSdkVersion 36
+        versionName "1000 beta"
+        versionCode 1000
+
+        multiDexEnabled = true
+        manifestPlaceholders = [appName: "MOBILE RUSSIA"]
+
+        // Tắt toàn bộ C/C++ Warnings giúp nhẹ log
+        externalNativeBuild {
+            cmake {
+                cppFlags "-fvisibility=hidden -w"
+                cFlags "-w"
             }
         }
-        ver_test {
-            dimension "version"
-            applicationIdSuffix ".test"
-            versionNameSuffix "-test"
-            manifestPlaceholders = [appName:"MOBILE RUSSIA TEST"]
 
-            firebaseCrashlytics {
-                nativeSymbolUploadEnabled false
-            }
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
         }
     }
 
@@ -43,44 +47,7 @@ android {
         jvmTarget = "21"
     }
 
-    compileSdk 36
-    defaultConfig {
-        minSdkVersion 26
-        targetSdkVersion 36
-
-        namespace 'com.russia.game'
-        applicationId "com.russia.game"
-        versionName "1000 beta"
-        versionCode 1000
-
-        multiDexEnabled = true
-
-        // Tắt toàn bộ C/C++ Warnings giúp nhẹ log và không bị nghẽn GitHub Actions
-        externalNativeBuild {
-            cmake {
-                cppFlags "-w"
-                cFlags "-w"
-            }
-        }
-
-        lintOptions {
-            checkReleaseBuilds false
-            abortOnError false
-        }
-
-        ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a'
-        }
-    }
-
-
-    externalNativeBuild {
-        cmake {
-            path "src/main/cpp/CMakeLists.txt"
-        }
-    }
-
-    packagingOptions {
+    packaging {
         jniLibs {
             excludes += ['META-INF/*']
         }
@@ -94,30 +61,31 @@ android {
     androidResources {
         noCompress 'mp3'
     }
+
     buildTypes {
         release {
             signingConfig signingConfigs.debug
+            minifyEnabled false
         }
         debug {
-            externalNativeBuild {
-                cmake {
-                    // Bổ sung -w cho debug mode
-                    cppFlags '-g -w'
-                }
-            }
-
             debuggable true
             minifyEnabled false
             jniDebuggable false
-            renderscriptDebuggable false
         }
     }
+
     viewBinding {
         enabled = true
     }
 
     buildFeatures {
         prefab true
+        buildConfig true
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
     }
 }
 
