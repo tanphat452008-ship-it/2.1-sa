@@ -19,8 +19,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up JDK
-      - name: Set up JDK 17
+      # 2. Set up JDK 21
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -30,11 +30,11 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # 4. Set up Android SDK
+      # 4. Set up Android SDK (Cập nhật API 36 đồng bộ với build.gradle)
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: "platforms;android-33 build-tools;33.0.2"
+          packages: "platforms;android-36 build-tools;36.0.0"
           cmdline-tools-version: 12266719
           accept-android-sdk-licenses: true
 
@@ -66,8 +66,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path "release-files" | Out-Null
 
-          # Copy APK
-          Copy-Item "app/build/outputs/apk/debug/*.apk" "release-files/" -Force
+          # Tim va copy tat ca file APK sinh ra vao thu muc release-files
+          Get-ChildItem -Path "app/build/outputs/apk" -Filter "*.apk" -Recurse | Copy-Item -Destination "release-files/" -Force
 
           Write-Host ""
           Write-Host "===== RELEASE FILES ====="
