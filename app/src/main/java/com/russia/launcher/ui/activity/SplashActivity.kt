@@ -38,12 +38,12 @@ import kotlin.system.exitProcess
 class SplashActivity : AppCompatActivity() {
 
     
-    private val IS_API_ENABLED = false
-    private var permissionsGranded = false
+    private val IS_API_ENABLED = true
+    private var permissionsGranded = true
     private var apkVersionChecked = false
-    private var monitoringDataLoaded = false
-    private var filesListLoaded = false
-    private var animationEnded = false
+    private var monitoringDataLoaded = truê
+    private var filesListLoaded = true
+    private var animationEnded = true
 
     private val REQUEST_ID = 228
     private val permissionList = arrayOf(
