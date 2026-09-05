@@ -5,22 +5,20 @@ import android.graphics.PorterDuff
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.view.animation.Animation
-import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import com.russia.game.R
 import com.russia.game.core.Samp
-import com.russia.launcher.async.dto.response.FileInfo
-import com.russia.launcher.async.task.CacheChecker
 import com.russia.launcher.config.Config.DONATE_URL
 import com.russia.launcher.config.Config.FORUM_URL
-import com.russia.launcher.domain.enums.DownloadType
 import com.russia.launcher.domain.enums.StorageElements
 import com.russia.launcher.service.impl.ActivityServiceImpl
 import com.russia.launcher.storage.NativeStorage
@@ -28,185 +26,140 @@ import com.russia.launcher.storage.Storage
 import com.russia.launcher.ui.dialogs.EnterLockedServerPasswordDialog
 import com.russia.launcher.ui.fragment.MonitoringFragment
 import com.russia.launcher.ui.fragment.SettingsFragment
-import com.russia.launcher.utils.MainUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.apache.commons.lang3.StringUtils
 import java.io.File
 
 class MainActivity : AppCompatActivity() {
-    private var animation: Animation? = null
-    private var donateButton: LinearLayout? = null
-    private var donateImage: ImageView? = null
-    private var donateTV: TextView? = null
-    private var monitoringButton: LinearLayout? = null
-    private var monitoringFragment: MonitoringFragment? = null
-    private var monitoringImage: ImageView? = null
-    private var monitoringTV: TextView? = null
-    private var playButton: LinearLayout? = null
-    private var playImage: ImageView? = null
-    private var rouletteButton: LinearLayout? = null
-    private var rouletteImage: ImageView? = null
-    private var rouletteTV: TextView? = null
-    private var settingsButton: LinearLayout? = null
-    private var settingsFragment: SettingsFragment? = null
-    private var settingsImage: ImageView? = null
-    private var settingsTV: TextView? = null
-    private var container_layout: FrameLayout? = null
+
+    private lateinit var donateButton: LinearLayout
+    private lateinit var donateImage: ImageView
+    private lateinit var donateTV: TextView
+    private lateinit var monitoringButton: LinearLayout
+    private lateinit var monitoringImage: ImageView
+    private lateinit var monitoringTV: TextView
+    private lateinit var playButton: LinearLayout
+    private lateinit var playImage: ImageView
+    private lateinit var rouletteButton: LinearLayout
+    private lateinit var rouletteImage: ImageView
+    private lateinit var rouletteTV: TextView
+    private lateinit var settingsButton: LinearLayout
+    private lateinit var settingsImage: ImageView
+    private lateinit var settingsTV: TextView
+    private lateinit var containerLayout: FrameLayout
+
+    private val monitoringFragment by lazy { MonitoringFragment() }
+    private val settingsFragment by lazy { SettingsFragment() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
         setTheme(R.style.AppBaseTheme)
+        setContentView(R.layout.activity_main)
 
-//        setContentView(R.layout.spin_box);
-//        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-//        gg = new SpinBox(this);
-        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        hideSystemUI()
+        initViews()
 
-        container_layout = findViewById(R.id.container)
-        animation = AnimationUtils.loadAnimation(this, R.anim.button_click)
+        if (savedInstanceState != null && savedInstanceState.getBoolean(IS_AFTER_LOADING_KEY)) {
+            replaceFragment(settingsFragment)
+        } else if (savedInstanceState == null && intent.extras?.getBoolean(IS_AFTER_LOADING_KEY) == true) {
+            onClickSettings()
+        } else {
+            replaceFragment(monitoringFragment)
+        }
+
+        setupClickListeners()
+    }
+
+    private fun initViews() {
+        containerLayout = findViewById(R.id.container)
         monitoringTV = findViewById(R.id.monitoringTV)
         settingsTV = findViewById(R.id.settingsTV)
-        rouletteTV = findViewById(R.id.forumTV) 
+        rouletteTV = findViewById(R.id.forumTV)
         donateTV = findViewById(R.id.donateTV)
+
         monitoringImage = findViewById(R.id.monitoringImage)
         settingsImage = findViewById(R.id.settingsImage)
         rouletteImage = findViewById(R.id.forumImage)
         donateImage = findViewById(R.id.donateImage)
         playImage = findViewById(R.id.playImage)
+
         monitoringButton = findViewById(R.id.monitoringButton)
         settingsButton = findViewById(R.id.settingsButton)
         rouletteButton = findViewById(R.id.rouletteButton)
         donateButton = findViewById(R.id.donateButton)
         playButton = findViewById(R.id.playButton)
-        monitoringFragment = MonitoringFragment()
-        settingsFragment = SettingsFragment()
-        if (savedInstanceState != null && savedInstanceState.getBoolean(IS_AFTER_LOADING_KEY)) {
-            replaceFragment(settingsFragment)
-        } else if (savedInstanceState == null && intent.extras != null && intent.extras!!.getBoolean(IS_AFTER_LOADING_KEY)) {
-            onClickSettings()
-        } else {
-            replaceFragment(monitoringFragment)
-        }
-        monitoringButton!!.setOnClickListener {
-            onClickMonitoring()
-        }
+    }
 
-        settingsButton!!.setOnClickListener {
-            onClickSettings()
+    private fun setupClickListeners() {
+        monitoringButton.setOnClickListener { onClickMonitoring() }
+        settingsButton.setOnClickListener { onClickSettings() }
+        
+        rouletteButton.setOnClickListener {
+            openUrl(FORUM_URL)
         }
+        
+        donateButton.setOnClickListener { onClickDonate() }
+        playButton.setOnClickListener { onClickPlay() }
+    }
 
-        rouletteButton!!.setOnClickListener {
-            val address = Uri.parse(FORUM_URL)
-            val openlink = Intent(Intent.ACTION_VIEW, address)
-            startActivity(openlink)
+    private fun hideSystemUI() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
-        donateButton!!.setOnClickListener {
-            onClickDonate()
-        }
-
-        playButton!!.setOnClickListener {
-            onClickPlay()
-        }
-
     }
 
     private fun onClickPlay() {
         startGame()
-        /*if (isCheckSkipping) {
-            startGame()
-        } else {
-            val progressDialog = findViewById<ConstraintLayout>(R.id.progressDialog)
-            progressDialog.visibility = View.VISIBLE
-
-            GlobalScope.launch {
-                val filesList = CacheChecker.getInvalidFilesList(this@MainActivity)
-                withContext(Dispatchers.Main) {
-                    doAfterCacheChecked(filesList)
-
-                    progressDialog.visibility = View.GONE
-                }
-            }
-        }*/
-    }
-
-    private val isCheckSkipping: Boolean
-        get() {
-            val isTestMode = NativeStorage.getClientProperty("test", this)
-
-            //todo брать из Storage тк static стирается
-            return TEST_MODE_ON_VALUE == isTestMode
-    //        return true
-        }
-
-    private fun doAfterCacheChecked(fileToReload: MutableList<FileInfo>) {
-
-        for (file in fileToReload) {
-            println("invalid file = ${file.path}")
-        }
-        if (fileToReload.isEmpty()) {
-            startGame()
-        } else {
-            MainUtils.FILES_TO_RELOAD = fileToReload
-
-            MainUtils.type = DownloadType.RELOAD_GAME_FILES
-            startActivity(Intent(this, LoaderActivity::class.java))
-        }
     }
 
     private fun startGame() {
-        val log = File(getExternalFilesDir(null).toString() + "/log.txt")
-        log.delete()
-
-        // FIXME
-        val aaaaaaaaaa = File(getExternalFilesDir(null).toString() + "/CINFO.BIN")
-        aaaaaaaaaa.delete()
-
-        val bbbbbbbb = File(getExternalFilesDir(null).toString() + "/models/MINFO.BIN")
-        bbbbbbbb.delete()
+        // Dọn dẹp cache / log
+        val filesToDelete = listOf("/log.txt", "/CINFO.BIN", "/models/MINFO.BIN")
+        filesToDelete.forEach { path ->
+            File(getExternalFilesDir(null).toString() + path).delete()
+        }
 
         val nickname = NativeStorage.getClientProperty("name", this)
         val selectedServer = NativeStorage.getClientProperty("server", this)
+
         if (StringUtils.isBlank(nickname)) {
             ActivityServiceImpl.showErrorMessage("Укажите ник!", this)
             onClickSettings()
             return
         }
+
         if (StringUtils.isBlank(selectedServer)) {
             ActivityServiceImpl.showErrorMessage("Выберите сервер", this)
             onClickMonitoring()
             return
         }
+
         val tmp = Storage.getProperty(StorageElements.SERVER_LOCKED, this)
-        var serverLockedValue = 0
-        if (tmp != null) serverLockedValue = tmp.toInt()
+        val serverLockedValue = tmp?.toIntOrNull() ?: 0
+
         if (SERVER_LOCKED_VALUE == serverLockedValue) {
             val dialog = EnterLockedServerPasswordDialog(this)
-            dialog.setOnDialogCloseListener { password: String -> saveServerPassword(password) }
+            dialog.setOnDialogCloseListener { password -> saveServerPassword(password) }
             dialog.createDialog()
             return
-        }
-        if (SERVER_LOCKED_VALUE != serverLockedValue) {
+        } else {
             NativeStorage.addClientProperty("password", StringUtils.EMPTY, this)
         }
-        val intent = Intent(this, Samp::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        startActivity(intent)
 
-         this.finish();
+        launchGame()
     }
 
     private fun saveServerPassword(password: String) {
         NativeStorage.addClientProperty("password", password, this)
-        startActivity(Intent(this, Samp::class.java))
+        launchGame()
+    }
+
+    private fun launchGame() {
+        val intent = Intent(this, Samp::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        startActivity(intent)
         finish()
     }
 
@@ -216,9 +169,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onClickDonate() {
-        val address = Uri.parse(DONATE_URL)
-        val openlink = Intent(Intent.ACTION_VIEW, address)
-        startActivity(openlink)
+        openUrl(DONATE_URL)
     }
 
     private fun onClickMonitoring() {
@@ -226,43 +177,40 @@ class MainActivity : AppCompatActivity() {
         replaceFragment(monitoringFragment)
     }
 
-    fun setTextColor(linearLayout: LinearLayout?, textView: TextView?, imageView: ImageView?) {
-        monitoringButton!!.alpha = 0.45f
-        settingsButton!!.alpha = 0.45f
-        rouletteButton!!.alpha = 0.45f
-        donateButton!!.alpha = 0.45f
-        monitoringTV!!.setTextColor(resources.getColor(R.color.menuTextDisable))
-        settingsTV!!.setTextColor(resources.getColor(R.color.menuTextDisable))
-        rouletteTV!!.setTextColor(resources.getColor(R.color.menuTextDisable))
-        donateTV!!.setTextColor(resources.getColor(R.color.menuTextDisable))
-        monitoringImage!!.setColorFilter(resources.getColor(R.color.menuTextDisable), PorterDuff.Mode.SRC_IN)
-        settingsImage!!.setColorFilter(resources.getColor(R.color.menuTextDisable), PorterDuff.Mode.SRC_IN)
-        rouletteImage!!.setColorFilter(resources.getColor(R.color.menuTextDisable), PorterDuff.Mode.SRC_IN)
-        donateImage!!.setColorFilter(resources.getColor(R.color.menuTextDisable), PorterDuff.Mode.SRC_IN)
-        linearLayout!!.alpha = 1.0f
-        textView!!.setTextColor(resources.getColor(R.color.menuTextEnable))
-        imageView!!.setColorFilter(resources.getColor(R.color.menuTextEnable), PorterDuff.Mode.SRC_IN)
+    private fun openUrl(url: String) {
+        runCatching {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            startActivity(intent)
+        }
     }
 
-    private fun replaceFragment(fragment: Fragment?) {
-        supportFragmentManager.beginTransaction().replace(R.id.container, fragment!!).commitAllowingStateLoss()
+    private fun setTextColor(activeLayout: LinearLayout, activeTextView: TextView, activeImageView: ImageView) {
+        val disableColor = ContextCompat.getColor(this, R.color.menuTextDisable)
+        val enableColor = ContextCompat.getColor(this, R.color.menuTextEnable)
+
+        listOf(monitoringButton, settingsButton, rouletteButton, donateButton).forEach {
+            it.alpha = 0.45f
+        }
+        listOf(monitoringTV, settingsTV, rouletteTV, donateTV).forEach {
+            it.setTextColor(disableColor)
+        }
+        listOf(monitoringImage, settingsImage, rouletteImage, donateImage).forEach {
+            it.setColorFilter(disableColor, PorterDuff.Mode.SRC_IN)
+        }
+
+        activeLayout.alpha = 1.0f
+        activeTextView.setTextColor(enableColor)
+        activeImageView.setColorFilter(enableColor, PorterDuff.Mode.SRC_IN)
     }
 
-    public override fun onDestroy() {
-        super.onDestroy()
-    }
-
-    public override fun onRestart() {
-        super.onRestart()
-    }
-
-    public override fun onStop() {
-        super.onStop()
+    private fun replaceFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.container, fragment)
+            .commitAllowingStateLoss()
     }
 
     companion object {
         private const val IS_AFTER_LOADING_KEY = "isAfterLoading"
-        private const val GAME_DIRECTORY_EMPTY_SIZE = 0
         private const val SERVER_LOCKED_VALUE = 1
         private const val TEST_MODE_ON_VALUE = "1"
     }
