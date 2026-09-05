@@ -17,7 +17,6 @@
 
 #define NETGAME_VERSION 4057
 #define AUTH_BS "E02262CF28BC542486C558D4BE9EFB716592AFAF8B"
-//#define AUTH_BS "1528354F18550C00AB504591304D0379BB0ACA99043"
 
 extern CGUI *pGUI;
 
@@ -25,11 +24,8 @@ int iVehiclePoolProcessFlag = 0;
 int iPickupPoolProcessFlag = 0;
 
 void RegisterRPCs(RakClientInterface *pRakClient);
-
 void UnRegisterRPCs(RakClientInterface *pRakClient);
-
 void RegisterScriptRPCs(RakClientInterface *pRakClient);
-
 void UnRegisterScriptRPCs(RakClientInterface *pRakClient);
 
 unsigned char GetPacketID(Packet *p) {
@@ -57,7 +53,6 @@ CNetGame::CNetGame(const char *szHostOrIp, int iPort, const char *szPlayerName,
     m_pRakClient = RakNetworkFactory::GetRakClientInterface();
     RegisterRPCs(m_pRakClient);
     RegisterScriptRPCs(m_pRakClient);
-    // key
 
     m_pRakClient->SetPassword(szPass);
 
@@ -85,7 +80,7 @@ CNetGame::CNetGame(const char *szHostOrIp, int iPort, const char *szPlayerName,
     CGame::EnableZoneNames(false);
     CGame::DisableRaceCheckpoint();
 
-    Log("CNetGame createt obj");
+    Log("CNetGame created obj");
 }
 
 #include "../voice/Network.h"
@@ -111,19 +106,15 @@ CNetGame::~CNetGame() {
     }
 
     if (!CGame::bIsGameExiting) g_pJavaWrapper->ClearScreen();
-
 }
 
-#include "java_systems/Speedometr.h"
 #include "game/IdleCam.h"
 #include "voice/Network.h"
 #include "game/Snow.h"
 #include "game/Camera.h"
-#include "JavaGui.h"
 
 void CNetGame::Process() {
     UpdateNetwork();
-   // CSnow::Process();
 
     // need all frame
     if (CGame::m_bCheckpointsEnabled) {
@@ -149,8 +140,6 @@ void CNetGame::Process() {
         return;
     }
 
-    CSpeedometr::UpdateSpeed();
-
     if (GetGameState() == eNetworkState::CONNECTED) {
         // pool process
         CPlayerPool::Process();
@@ -160,7 +149,6 @@ void CNetGame::Process() {
 
     } else {
         CPedSamp *pPlayer = CGame::FindPlayerPed();
-        // ?????? ??? ???????????
 
         if (pPlayer) {
             if (pPlayer->m_pPed->IsInVehicle())
@@ -172,7 +160,6 @@ void CNetGame::Process() {
             CCamera::LookAtPoint(-310.0f, 157.0f, 39.0f, 2);
             CHUD::toggleAll(false);
             CGame::SetWorldWeather(m_byteWeather);
-            //	CGame::DisplayWidgets(false);
         }
     }
 
@@ -185,7 +172,6 @@ void CNetGame::Process() {
         m_dwLastConnectAttempt = GetTickCount();
         SetGameState(eNetworkState::CONNECTING);
     }
-
 }
 
 void CNetGame::UpdateNetwork()
@@ -203,7 +189,7 @@ void CNetGame::UpdateNetwork()
                 break;
 
             case ID_NO_FREE_INCOMING_CONNECTIONS:
-                CChatWindow::AddMessage("������ �����...");
+                CChatWindow::AddMessage("Server Full...");
                 SetGameState(eNetworkState::WAIT_CONNECT);
                 break;
 
@@ -228,7 +214,7 @@ void CNetGame::UpdateNetwork()
                 break;
 
             case ID_INVALID_PASSWORD:
-                CChatWindow::AddMessage("�������� ������!");
+                CChatWindow::AddMessage("Wrong Password!");
                 m_pRakClient->Disconnect(0);
                 break;
 
@@ -275,10 +261,6 @@ void CNetGame::UpdateNetwork()
             case PACKET_SPECIALCUSTOM:
                 Packet_SpecialCustomRPC(pkt);
                 break;
-
-            case PACKET_ANDROID_GUI:
-                CJavaGui::ReceivePacket(pkt);
-                break;
         }
 
         m_pRakClient->DeallocatePacket(pkt);
@@ -304,102 +286,17 @@ void CNetGame::Packet_TrailerSync(Packet *p)
     }
 }
 
-
 #include "..//game/CCustomPlateManager.h"
-#include "java_systems/DuelsGui.h"
-#include "java_systems/AutoShop.h"
-#include "java_systems/ChooseSpawn.h"
-#include "java_systems/casino/LuckyWheel.h"
-#include "java_systems/Samwill.h"
-#include "java_systems/GunStore.h"
-#include "java_systems/Achivments.h"
-#include "java_systems/OilFactory.h"
-#include "java_systems/FuelStation.h"
-#include "java_systems/RadialMenu.h"
-#include "java_systems/Authorization.h"
-#include "java_systems/ArmyGame.h"
-#include "java_systems/mine/MineGame1.h"
-#include "java_systems/mine/MineGame2.h"
-#include "java_systems/mine/MineGame3.h"
-#include "java_systems/GuiWrapper.h"
-#include "java_systems/SkinShop.h"
-#include "java_systems/Registration.h"
-#include "java_systems/GameFilesCheck.h"
-#include "java_systems/Milk.h"
 #include "str_obfuscator.hpp"
-#include "java_systems/Taxi.h"
-#include "MagicStore.h"
-#include "Race.h"
-#include "Inventory.h"
 #include "game/WaterCannons.h"
-#include "DailyReward.h"
-#include "java_systems/Monologue.h"
-#include "MiningStore.h"
-#include "BuyPlate.h"
-#include "BattlePass.h"
 #include "game/World.h"
-#include "BusStation.h"
-
 
 void CNetGame::Packet_AuthRPC(Packet *p) {
-    RakNet::BitStream bs((unsigned char *) p->data, p->length, false);
-    uint8_t packetID;
-    uint32_t rpcID;
-    bs.Read(packetID);
-    bs.Read(rpcID);
-    // CChatWindow::AddMessage("packet: %d rpc: %d", packetID, rpcID);
-
-    switch (rpcID) {
-        case RPC_TOGGLE_LOGIN: {
-            uint32_t toggle, ip_match, timepassed, email_acvive;
-            bs.Read(toggle);
-            bs.Read(ip_match);
-            bs.Read(timepassed);
-            bs.Read(email_acvive);
-
-            if (toggle == 1) {
-                CAuthorization::Update(CPlayerPool::GetLocalPlayerName(),
-                                       CPlayerPool::GetLocalPlayerID(),
-                                                      (bool) CSettings::m_Settings.szAutoLogin,
-                                                      (bool) email_acvive
-                    );
-
-                    if (CSettings::m_Settings.szAutoLogin && ip_match && timepassed) {
-                        CAuthorization::SendLoginPacket(CSettings::m_Settings.player_password);
-                    }
-            } else if (toggle == 0) {
-                CAuthorization::Destroy();
-            }
-            break;
-        }
-        case RPC_TOGGLE_REGISTER: {
-            uint32_t toggle;
-            bs.Read(toggle);
-            if (toggle == 1) {
-                CRegistration::Show(CPlayerPool::GetLocalPlayerName(),
-                                    CPlayerPool::GetLocalPlayerID());
-
-            } else if (toggle == 0) {
-                CRegistration::Destroy();
-            }
-            break;
-        }
-    }
+    // Custom Auth UI đã loại bỏ
 }
 
 void CNetGame::Packet_SpecialCustomRPC(Packet *p) {
-    RakNet::BitStream bs((unsigned char *) p->data, p->length, false);
-    uint8_t packetID;
-    uint32_t rpcID;
-    bs.Read(packetID);
-    bs.Read(rpcID);
-    Log("Packet_SpecialCustomRPC");
-    // CChatWindow::AddMessage("packet: %d rpc: %d", packetID, rpcID);
-
-    if(rpcID == RPC_TOGGLE_CHOOSE_SPAWN ){
-        CChooseSpawn::packetToggle(p);
-        return;
-    }
+    // Custom Special UI đã loại bỏ
 }
 
 void CNetGame::Packet_CustomRPC(Packet *p) {
@@ -431,10 +328,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
                 return;
 
             ScriptCommand(&put_actor_in_car2, pActor->m_dwGTAId, pVehicle->m_dwGTAId, setatId);
-            break;
-        }
-        case RPC_REQUEST_CHECK_FILES: {
-            CGameFilesCheck::RequestChecked();
             break;
         }
         case RPC_REMOVE_ACTOR_FROM_VEH: {
@@ -492,7 +385,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
         }
         case RPC_SET_ACTOR_NAME: {
             PLAYERID    actorId;
-
             uint8_t     len;
 
             bs.Read(actorId);
@@ -514,7 +406,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             bs.Read(pos.x);
             bs.Read(pos.y);
             bs.Read(pos.z);
-
             bs.Read(time);
 
             auto pActor = CActorPool::GetAt(actorId);
@@ -563,10 +454,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             CNetGame::GiveActorWeapon(p);
             break;
         }
-        case PACKET_BATTLEPASS: {
-            CBattlePass::ReceivePacket(p);
-            break;
-        }
         case PACKET_LINE_OF_SIGHT: {
             uint16_t id;
             bs.Read(id);
@@ -590,126 +477,18 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             }
             else {
                 sendData.Write((uint8)  1);
-                sendData.Write(colPoint.m_vecPoint); // vec
+                sendData.Write(colPoint.m_vecPoint);
                 sendData.Write((uint8) hitEntity->m_nType);
             }
             pNetGame->GetRakClient()->Send(&sendData, HIGH_PRIORITY, RELIABLE, 0);
-            break;
-        }
-        case RPC_BUY_PLATE: {
-            CBuyPlate::ReceivePacket(p);
             break;
         }
         case RPC_ACTOR_ATTACK: {
             CNetGame::ActorAttack(p);
             break;
         }
-        case RPC_MAGIC_STORE: {
-            CMagicStore::ReceivePacket(p);
-            break;
-        }
-        case RPC_TAXI: {
-            CTaxi::ReceivePacket(p);
-            break;
-        }
-        case RPC_MINING_STORE: {
-            CMiningStore::ReceivePacket(p);
-            break;
-        }
-        case RPC_MONOLOGY: {
-            CMonologue::ReceivePacket(p);
-            break;
-        }
-        case RPC_RACE: {
-            CRace::ReceivePacket(p);
-            break;
-        }
         case RPC_PLAYER_TAG: {
             CNetGame::SetPlayerTag(p);
-            break;
-        }
-        case RPC_INVENTORY: {
-            CInventory::ReceivePacket(p);
-            break;
-        }
-        case RPC_SHOW_CASINO_BUY_CHIP: {
-            packetCasinoChip(p);
-            break;
-        }
-        case RPC_KILL_LIST: {
-            packetKillList(p);
-            break;
-        }
-        case RPC_TECH_INSPECT: {
-            packetTechInspect(p);
-            break;
-        }
-        case RPC_DAILY_REWARDS: {
-            CDailyReward::ReceivePacket(p);
-            break;
-        }
-        case PACKET_MILK: {
-            CMilk::ReceivePacket(p);
-            break;
-        }
-        case RPC_SHOW_DONATE: {
-            packetShowDonat(p);
-            break;
-        }
-        case RPC_TREASURE: {
-            packetTreasure(p);
-            break;
-        }
-        case RPC_ACHIVMENTS: {
-            CAchivments::packetAchivments(p);
-            break;
-        }
-        case RPC_GIFT_NOTIFY: {
-            packetGiftNotify(p);
-            break;
-        }
-        case RPC_DONATE_STASH: {
-            packetShowDonateStash(p);
-            break;
-        }
-        case RPC_TUNING_WHEELS: {
-            packetTireShop(p);
-            break;
-        }
-        case RPC_THEFT_AUTO: {
-            packetTheftAuto(p);
-            break;
-        }
-        case RPC_UPDATE_SATIETY: {
-            packetUpdateSatiety(p);
-            break;
-        }
-        case 80: {
-            packetTorpedoButt(p);
-            break;
-        }
-        case RPC_SHOW_ACTION_LABEL: {
-            packetNotification(p);
-            break;
-        }
-        case RPC_DUELS_SHOW_KILL_LEFT: {
-            packetDuelsKillsLeft(p);
-            break;
-        }
-        case RPC_DUELS_SHOW_LOCAL_TOP: {
-            packetDuelsTop(p);
-            break;
-        }
-        case RPC_DUELS_SHOW_LOCAL_STAT: {
-            packetDuelsStatistic(p);
-            break;
-        }
-        case RPC_CLEAR_KILL_LIST: {
-            CDuelsGui::clearKillList();
-            break;
-        }
-        case RPC_UPDATE_BACCARAT: {
-            packetCasinoBaccarat(p);
             break;
         }
         case RPC_SET_MONEY: {
@@ -717,29 +496,11 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             bs.Read(money);
 
             CHUD::iLocalMoney = money;
-
             CHUD::UpdateMoney();
-            break;
-        }
-        case RPC_SHOW_CONTEINER_AUC: {
-            packetAucContainer(p);
-            break;
-        }
-        case RPC_SHOW_SALARY: {
-            packetSalary(p);
             break;
         }
         case RPC_ADMIN_RECON: {
             packetAdminRecon(p);
-            break;
-        }
-        case RPC_MAFIA_WAR: {
-            packetMafiaWar(p);
-            break;
-        }
-
-        case RPC_CASINO_LUCKY_WHEEL_MENU: {
-            CLuckyWheel::packetShow(p);
             break;
         }
         case RPC_SPAWN_AT: {
@@ -754,27 +515,10 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             CLocalPlayer::Spawn(pos, rotation);
             break;
         }
-        case RPC_SHOW_FACTORY_GAME: {
-            Packet_FurnitureFactory(p);
-            break;
-        }
-        case RPC_STYLING_CENTER: {
-            packetStylingCenter(p);
-            break;
-        }
         case RPC_SEND_BUFFER: {
             std::string text;
             bs.Read(text);
-
             g_pJavaWrapper->SendBuffer( cp1251_to_utf8(text) );
-            break;
-        }
-        case RPC_SHOW_DICE_TABLE: {
-            packetDice(p);
-            break;
-        }
-        case RPC_OPEN_SETTINGS: {
-            g_pJavaWrapper->ShowClientSettings();
             break;
         }
         case RPC_SHOW_TARGET_LABEL: {
@@ -791,59 +535,8 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
 
             break;
         }
-        case RPC_SHOW_ARMY_GAME: {
-            uint8_t toggle;
-            uint8_t quantity;
-            bs.Read(toggle);
-            bs.Read(quantity);
-
-            if (toggle == 1) {
-                CArmyGame::Show();
-            } else {
-                //g_pJavaWrapper->HideArmyGame();
-            }
-            break;
-        }
-        case RPC_SHOW_TD_BUS: {
-            CBusStation::ReceivePacket(p);
-            break;
-        }
-        case 444: {
-            uint16_t targetID;
-            bs.Read(targetID);
-
-            CPedSamp *localPed = CLocalPlayer::GetPlayerPed();
-            CPedSamp *toPed = CPlayerPool::GetAt(targetID)->GetPlayerPed();
-            ScriptCommand(&TASK_CHAR_ARREST_CHAR, localPed->m_dwGTAId, toPed->m_dwGTAId);
-            break;
-        }
-        case RPC_SHOW_MINING_GAME: {
-            uint8_t toggle;
-            uint32_t type;
-
-            bs.Read(toggle);
-            bs.Read(type);
-
-            if (type == 0) {
-                CMineGame1::Show();
-                return;
-            }
-            if (type == 1) {
-                CMineGame2::Show();
-                return;
-            }
-            if (type == 2) {
-                CMineGame3::Show();
-                return;
-            }
-            break;
-        }
         case RPC_PRE_DEATH: {
             packetPreDeath(p);
-            break;
-        }
-        case RPC_MED_GAME: {
-            packetMedGame(p);
             break;
         }
         case RPC_CHECK_CLIENT: {
@@ -853,29 +546,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             bs.Read(recievKey, recievKey_len);
 
             recievKey[recievKey_len] = '\0';
-
-            #ifdef NDEBUG
-                CRYPTEDSTRING(signorig, "hb5LGjXZTu3XZoUf7hJXeBp0sYU=");
-                auto env = g_pJavaWrapper->GetEnv();
-                jclass clazz = env->GetObjectClass(g_pJavaWrapper->activity);
-
-                jmethodID method = env->GetStaticMethodID(clazz, "getSignature", "()Ljava/lang/String;");
-                auto jsignature = (jstring)env->CallStaticObjectMethod(clazz, method);
-
-                const char *pSignature = env->GetStringUTFChars(jsignature, nullptr);
-
-                char origCp[255];
-                char codeCp[255];
-                cp1251_to_utf8(origCp, pSignature);
-                cp1251_to_utf8(codeCp, signorig.decode().c_str());
-
-                if(strcmp(codeCp, codeCp) != 0) {
-                    firebase::crashlytics::Log("SUKADOLBOEB IDI NAHUI!");
-                    g_pJavaWrapper->ExitGame();
-                }
-
-                 //   exit(0);
-            #endif
 
             CRYPTEDSTRING(preKey, "Yhjkkkkqur");
             CRYPTEDSTRING(postKey, "1147Yorag");
@@ -888,15 +558,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             SendCheckClientPacket(sha256(key_with_salt));
             break;
 
-        }
-        case RPC_SHOW_OILGAME: {
-            uint8_t toggle;
-            bs.Read(toggle);
-
-            if (toggle == 1) {
-                COilFactory::Show();
-            }
-            break;
         }
         case RPC_CUSTOM_SET_LEVEL: {
             uint8_t current;
@@ -932,131 +593,30 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             }
             break;
         }
-        case RPC_TOGGLE_SAMWILL_GAME: {
-            Log("RPC_TOGGLE_SAMWILL_GAME");
-            uint8_t value;
-            bs.Read(value);
-
-            if (value == 1) {
-                CSamwill::Show();
-            }
-            break;
-        }
         case RPC_VIBRATE: {
-            Log("RPC_VIBRATE");
             uint32_t value;
             bs.Read(value);
 
             g_pJavaWrapper->Vibrate(value);
             break;
         }
-        case RPC_GUNSTORE_TOGGLE: {
-            uint8_t toggle;
-            bs.Read(toggle);
-
-            if (toggle == 1) {
-                CGunStore::Show();
-            } else {
-             //   g_pJavaWrapper->HideGunShopManager();
-            }
-
-            break;
-        }
-        case RPC_TOGGLE_ACCESSORIES_MENU: {
-            uint8_t toggle;
-            uint32_t price;
-            bs.Read(toggle);
-
-            if (!toggle) {
-                CSkinShop::Destroy();
-                return;
-            }
-            bs.Read(price);
-
-            CSkinShop::Update(0, price);
-            break;
-        }
-        case RPC_TOGGLE_CLOTHING_MENU: {
-            uint8_t toggle;
-            uint32_t price;
-            bs.Read(toggle);
-            if (!toggle) {
-                CSkinShop::Destroy();
-                return;
-            }
-            bs.Read(price);
-
-            CSkinShop::Update(1, price);
-            break;
-        }
-        case RPC_FUELSTATION_BUY: {
-            uint8_t type;
-            uint32_t price1;
-            uint32_t price2;
-            uint32_t price3;
-            uint32_t price4;
-            uint32_t price5;
-            uint32_t maxCount;
-
-            bs.Read(type);
-            bs.Read(price1);
-            bs.Read(price2);
-            bs.Read(price3);
-            bs.Read(price4);
-            bs.Read(price5);
-            bs.Read(maxCount);
-
-            CFuelStation::Show(type, price1, price2, price3, price4, price5, maxCount);
-
-            break;
-        }
-        case RPC_SHOW_AUTOSHOP: {
-            uint32_t toggle;
-            bs.Read(toggle);
-
-            CAutoShop::toggle(toggle);
-
-            break;
-        }
-        case RPC_UPDATE_AUTOSHOP: {
-            CAutoShop::Packet_UpdateAutoShop(p);
-            break;
-        }
-//        case RPC_CUSTOM_HANDLING_DEFAULTS: {
-//            uint16_t vehId;
-//            bs.Read(vehId);
-//
-//            if (GetVehiclePool()) {
-//                CVehicleSamp *pVeh = GetVehiclePool()->GetAt(vehId);
-//                if (pVeh) {
-//                    pVeh->ResetVehicleHandling();
-//                }
-//            }
-//
-//            break;
-//        }
         case RPC_CUSTOM_VISUALS: {
-            DLOG("RPC_CUSTOM_VISUALS");
             uint16_t vehId;
             bs.Read(vehId);
 
             auto pVeh = CVehiclePool::GetAt(vehId);
             if (!pVeh) {
-                CChatWindow::DebugMessage("!!!ERR!!! Receive RPC_CUSTOM_VISUALS. Vehicle %d not created", vehId);
                 return;
             }
 
-            //
             bs.Read(pVeh->lightColor.r);
             bs.Read(pVeh->lightColor.g);
             bs.Read(pVeh->lightColor.b);
 
-            //
             float fWheelWidth;
             bs.Read(fWheelWidth);
             pVeh->SetWheelWidth(fWheelWidth);
 
-            //
             float fWheelAngleFront, fWheelAngleBack;
             bs.Read(fWheelAngleFront);
             bs.Read(fWheelAngleBack);
@@ -1064,35 +624,25 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             pVeh->SetWheelAngle(true, fWheelAngleFront);
             pVeh->SetWheelAngle(false, fWheelAngleBack);
 
-            //
             float wheelOffsetX, wheelOffsetY;
             bs.Read(wheelOffsetX);
             bs.Read(wheelOffsetY);
 
-           // float fValueX = ((float) wheelOffsetX / 100.0f);
             pVeh->SetWheelOffset(true, wheelOffsetX);
-
-         //   float fValueY = ((float) wheelOffsetY / 100.0f);
             pVeh->SetWheelOffset(false, wheelOffsetY);
 
-            //
             bs.Read(pVeh->mainColor.r);
             bs.Read(pVeh->mainColor.g);
             bs.Read(pVeh->mainColor.b);
 
-            //
             bs.Read(pVeh->secondColor.r);
             bs.Read(pVeh->secondColor.g);
             bs.Read(pVeh->secondColor.b);
 
-            // wheel coolor
             bs.Read(pVeh->wheelColor.r);
             bs.Read(pVeh->wheelColor.g);
             bs.Read(pVeh->wheelColor.b);
-           // Log("Serv send ==== %d, %d, %d", pVeh->wheelColor.r, pVeh->wheelColor.g, pVeh->wheelColor.b);
-          //  bs.Read(pVeh->wheelColor.a);
 
-            //
             bs.Read(pVeh->tonerColor.r);
             bs.Read(pVeh->tonerColor.g);
             bs.Read(pVeh->tonerColor.b);
@@ -1102,14 +652,12 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             bs.Read(vinyl);
             pVeh->ChangeVinylTo(vinyl);
 
-            // pPlateTexture
-            uint8_t bPlateType, bLen;
+            uint8_t bPlateType;
             std::string szText;
             std::string szRegion;
 
             bs.Read(bPlateType);
 
-            // strobs
             uint8_t strob;
             bs.Read(strob);
 
@@ -1119,14 +667,11 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             bs.ReadStr8(szRegion);
             pVeh->setPlate(static_cast<ePlateType>(bPlateType), szText, szRegion);
 
-            // neon
             bs.Read(pVeh->neon.neonColor.r);
             bs.Read(pVeh->neon.neonColor.g);
             bs.Read(pVeh->neon.neonColor.b);
 
             bs.Read(pVeh->neon.neonType);
-
-            CRadialMenu::Update();
             break;
         }
         case RPC_CUSTOM_HANDLING: {
@@ -1135,7 +680,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
 
             auto pVeh = CVehiclePool::GetAt(vehId);
             if (!pVeh){
-                CChatWindow::DebugMessage("!!!ERR!!! Receive RPC_CUSTOM_HANDLING. Vehicle %d not created", vehId);
                 return;
             }
 
@@ -1150,32 +694,8 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             }
 
             pVeh->SetHandlingData();
-
             break;
         }
-//        case RPC_CUSTOM_COMPONENT: {
-//            uint16_t veh, extra_comp;
-//            uint8_t comp;
-//            bs.Read(veh);
-//            CVehicleSamp *pVehicle = nullptr;
-//
-//            if (m_pVehiclePool) {
-//                pVehicle = m_pVehiclePool->GetAt(veh);
-//            }
-//            if (!pVehicle) {
-//                return;
-//            }
-//            for (int i = 0; i < E_CUSTOM_COMPONENTS::ccMax; i++) {
-//                if (i == E_CUSTOM_COMPONENTS::ccExtra) {
-//                    bs.Read(extra_comp);
-//                    pVehicle->SetComponentVisible(i, (uint16_t) extra_comp);
-//                } else {
-//                    bs.Read(comp);
-//                    pVehicle->SetComponentVisible(i, (uint16_t) comp);
-//                }
-//            }
-//            break;
-//        }
         case RPC_STREAM_CREATE: {
             std::string link;
             uint16_t id, interior;
@@ -1194,11 +714,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             bs.Read(needRepeat);
             bs.Read(creationTime);
 
-           // CChatWindow::AddMessage("RPC_STREAM_CREATE - id = %d, repeat = %d", id, needRepeat);
-//            char utf_text[len + 1];
-//            cp1251_to_utf8(utf_text, str, len);
-
-           // CChatWindow::AddMessage("%d %f %f %f %f %d %d %d %s %d", id, pos.x, pos.y, pos.z, fDistance, vw, interior, len, str, needRepeat);
             CAudioStreamPool::AddStream(id, &pos, interior, fDistance, cp1251_to_utf8(link).c_str(), needRepeat, creationTime);
             break;
         }
@@ -1231,12 +746,10 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             bs.Read(repeat);
 
             if(link.size() <= 3) {
-                DLOG("StopIndividualStream");
                 CAudioStreamPool::StopIndividualStream();
                 return;
             }
 
-            DLOG("PlayIndividualStream");
             CAudioStreamPool::PlayIndividualStream(link, repeat);
             break;
         }
@@ -1244,7 +757,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
         case RPC_STREAM_DESTROY: {
             uint32_t id;
             bs.Read(id);
-            //CChatWindow::AddMessage("%d", id);
             CAudioStreamPool::DeleteStreamByID(id);
             break;
         }
@@ -1255,7 +767,6 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             float fVolume;
             bs.Read(id);
             bs.Read(fVolume);
-            //CChatWindow::AddMessage("%d %f", id, fVolume);
             CAudioStreamPool::SetVolume(id, fVolume);
             break;
         }
@@ -1280,33 +791,7 @@ void CNetGame::Packet_CustomRPC(Packet *p) {
             g_pJavaWrapper->OpenUrl( cp1251_to_utf8(url) );
             break;
         }
-        case RPC_TIMEOUT_CHAT: {
-//			uint32_t timeoutStart = 0;
-//			uint32_t timeoutEnd = 0;
-//			bs.Read(timeoutStart);
-//			bs.Read(timeoutEnd);
-//
-//			if (pChatWindow)
-//			{
-//				CChatWindow::SetChatDissappearTimeout(timeoutStart, timeoutEnd);
-//			}
-
-            break;
-        }
-        case RPC_CUSTOM_SET_FUEL: {
-            uint32_t fuel;
-            uint32_t mileage;
-            bs.Read(fuel);
-            bs.Read(mileage);
-
-            CSpeedometr::fFuel = (int) fuel;
-            CSpeedometr::iMilliage = (int) mileage;
-
-            CSpeedometr::UpdateInfo();
-            break;
-        }
     }
-
 }
 
 void CNetGame::Reset() {
@@ -1347,8 +832,6 @@ void CNetGame::SendCheckClientPacket(std::string password) {
     bsSend.Write((uint16_t) password.size());
     bsSend.Write(password.c_str(), password.size());
     GetRakClient()->Send(&bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0);
-
-    //CChatWindow::AddMessage("key: %s", password);
 }
 
 void CNetGame::SendSpeedTurnPacket(uint8_t turnId, uint8_t state) {
@@ -1380,8 +863,7 @@ void CNetGame::SendRegisterSkinPacket(uint32_t skinId) {
     GetRakClient()->Send(&bsSend, SYSTEM_PRIORITY, RELIABLE, 0);
 }
 
-void
-CNetGame::SendCustomPacketFuelData(uint8_t packet, uint8_t RPC, uint8_t fueltype, uint32_t fuel) {
+void CNetGame::SendCustomPacketFuelData(uint8_t packet, uint8_t RPC, uint8_t fueltype, uint32_t fuel) {
     RakNet::BitStream bsSend;
     bsSend.Write(packet);
     bsSend.Write(RPC);
@@ -1416,8 +898,7 @@ void CNetGame::SendChatMessage(const char *szMsg) {
     bsSend.Write(byteTextLen);
     bsSend.Write(szMsg, byteTextLen);
 
-    m_pRakClient->RPC(&RPC_Chat, &bsSend, HIGH_PRIORITY, RELIABLE, 0, false, UNASSIGNED_NETWORK_ID,
-                      NULL);
+    m_pRakClient->RPC(&RPC_Chat, &bsSend, HIGH_PRIORITY, RELIABLE, 0, false, UNASSIGNED_NETWORK_ID, NULL);
 }
 
 void CNetGame::SendChatCommand(const char *szCommand) {
@@ -1428,13 +909,10 @@ void CNetGame::SendChatCommand(const char *szCommand) {
 
     bsParams.Write(iStrlen);
     bsParams.Write(szCommand, iStrlen);
-    m_pRakClient->RPC(&RPC_ServerCommand, &bsParams, HIGH_PRIORITY, RELIABLE, 0, false,
-                      UNASSIGNED_NETWORK_ID, NULL);
+    m_pRakClient->RPC(&RPC_ServerCommand, &bsParams, HIGH_PRIORITY, RELIABLE, 0, false, UNASSIGNED_NETWORK_ID, NULL);
 }
 
-void
-CNetGame::SetMapIcon(uint8_t byteIndex, float fX, float fY, float fZ, uint8_t byteIcon, int iColor,
-                     int style) {
+void CNetGame::SetMapIcon(uint8_t byteIndex, float fX, float fY, float fZ, uint8_t byteIcon, int iColor, int style) {
     if (byteIndex >= 100) return;
     if (m_dwMapIcons[byteIndex]) DisableMapIcon(byteIndex);
 
@@ -1448,18 +926,15 @@ void CNetGame::DisableMapIcon(uint8_t byteIndex) {
 }
 
 void CNetGame::UpdatePlayerScoresAndPings() {
-
     static uint32_t dwLastUpdateTick = 0;
 
     if ((GetTickCount() - dwLastUpdateTick) >= 3000) {
         dwLastUpdateTick = GetTickCount();
         RakNet::BitStream bsParams;
-        m_pRakClient->RPC(&RPC_UpdateScoresPingsIPs, &bsParams, HIGH_PRIORITY, RELIABLE, 0, false,
-                          UNASSIGNED_NETWORK_ID, NULL);
+        m_pRakClient->RPC(&RPC_UpdateScoresPingsIPs, &bsParams, HIGH_PRIORITY, RELIABLE, 0, false, UNASSIGNED_NETWORK_ID, NULL);
     }
 }
 
-void gen_auth_key(char buf[260], char *auth_in);
 const char* findKey(const char* sendValue);
 
 void CNetGame::packetAuthKey(Packet *pkt) {
@@ -1473,13 +948,7 @@ void CNetGame::packetAuthKey(Packet *pkt) {
     bsAuth.Read(szAuth, byteAuthLen);
     szAuth[byteAuthLen] = '\0';
 
-    /*
-     * This method only works in omp; in samp it can cause problems.
-     * The method below works in samp and omp but does not work in ndk 26+
-     */
     auto szAuthKey = findKey(szAuth);
-//    char szAuthKey[260];
-//    gen_auth_key(szAuthKey, szAuth);
 
     RakNet::BitStream bsKey;
     uint8_t byteAuthKeyLen = (uint8_t) strlen(szAuthKey);
@@ -1501,9 +970,7 @@ void CNetGame::Packet_ConnectionLost(Packet *pkt) {
         m_pRakClient->Disconnect(0);
 
     CChatWindow::AddMessage(CLocalisation::GetMessage(E_MSG::CONNECTION_LOST));
-
     SetGameState(eNetworkState::WAIT_CONNECT);
-
 }
 
 #include <sstream>
@@ -1516,9 +983,9 @@ void CNetGame::Packet_ConnectionSucceeded(Packet *pkt) {
     unsigned int uiChallenge;
 
     uint16_t playerid;
-    bsSuccAuth.IgnoreBits(8); // ID_CONNECTION_REQUEST_ACCEPTED
-    bsSuccAuth.IgnoreBits(32); // binaryAddress
-    bsSuccAuth.IgnoreBits(16); // port
+    bsSuccAuth.IgnoreBits(8);
+    bsSuccAuth.IgnoreBits(32);
+    bsSuccAuth.IgnoreBits(16);
     bsSuccAuth.Read(playerid);
     bsSuccAuth.Read(uiChallenge);
     char ip[0x7F];
@@ -1553,7 +1020,6 @@ void CNetGame::Packet_ConnectionSucceeded(Packet *pkt) {
     bsSend.Write(byteClientverLen);
     bsSend.Write(SAMP_VERSION, byteClientverLen);
 
-    // voice
     Voice::Network::OnRaknetRpc(RPC_ClientJoin, bsSend);
 
     m_pRakClient->RPC(&RPC_ClientJoin, &bsSend, HIGH_PRIORITY, RELIABLE, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
@@ -1576,21 +1042,16 @@ void CNetGame::Packet_PlayerSync(Packet *pkt) {
     bsPlayerSync.Read(bytePacketID);
     bsPlayerSync.Read(playerId);
 
-    // LEFT/RIGHT KEYS
     bsPlayerSync.Read(bHasLR);
     if (bHasLR) bsPlayerSync.Read(ofSync.lrAnalog);
 
-    // UP/DOWN KEYS
     bsPlayerSync.Read(bHasUD);
     if (bHasUD) bsPlayerSync.Read(ofSync.udAnalog);
 
-    // GENERAL KEYS
     bsPlayerSync.Read(ofSync.wKeys);
 
-    // CVector POS
     bsPlayerSync.Read((char *) &ofSync.vecPos, sizeof(CVector));
 
-    // QUATERNION
     float tw, tx, ty, tz;
     bsPlayerSync.ReadNormQuat(tw, tx, ty, tz);
     ofSync.quat.w = tw;
@@ -1598,7 +1059,6 @@ void CNetGame::Packet_PlayerSync(Packet *pkt) {
     ofSync.quat.y = ty;
     ofSync.quat.z = tz;
 
-    // HEALTH/ARMOUR (COMPRESSED INTO 1 BYTE)
     uint8_t byteHealthArmour;
     uint8_t byteArmTemp = 0, byteHlTemp = 0;
 
@@ -1614,12 +1074,9 @@ void CNetGame::Packet_PlayerSync(Packet *pkt) {
     else if (byteHlTemp == 0) ofSync.byteHealth = 0;
     else ofSync.byteHealth = byteHlTemp * 7;
 
-    // CURRENT WEAPON
     bsPlayerSync.Read(ofSync.byteCurrentWeapon);
-    // SPECIAL ACTION
     bsPlayerSync.Read(ofSync.byteSpecialAction);
 
-    // READ MOVESPEED VECTORS
     bsPlayerSync.ReadVector(tx, ty, tz);
     ofSync.vecMoveSpeed.x = tx;
     ofSync.vecMoveSpeed.y = ty;
@@ -1633,8 +1090,6 @@ void CNetGame::Packet_PlayerSync(Packet *pkt) {
         bsPlayerSync.Read(ofSync.vecSurfOffsets.z);
     } else
         ofSync.wSurfInfo = INVALID_VEHICLE_ID;
-
-    //uint8_t key = 0;
 
     pPlayer = CPlayerPool::GetSpawnedPlayer(playerId);
     if (pPlayer)
@@ -1654,33 +1109,27 @@ void CNetGame::Packet_VehicleSync(Packet *pkt) {
     bsSync.Read(playerId);
     bsSync.Read(icSync.VehicleID);
 
-    // keys
     bsSync.Read(icSync.lrAnalog);
     bsSync.Read(icSync.udAnalog);
     bsSync.Read(icSync.wKeys);
 
-    // quaternion
     bsSync.ReadNormQuat(
             icSync.quat.w,
             icSync.quat.x,
             icSync.quat.y,
             icSync.quat.z);
 
-    // position
     bsSync.Read((char *) &icSync.vecPos, sizeof(CVector));
 
-    // speed
     bsSync.ReadVector(
             icSync.vecMoveSpeed.x,
             icSync.vecMoveSpeed.y,
             icSync.vecMoveSpeed.z);
 
-    // vehicle health
     uint16_t wTempVehicleHealth;
     bsSync.Read(wTempVehicleHealth);
     icSync.fCarHealth = (float) wTempVehicleHealth;
 
-    // health/armour
     uint8_t byteHealthArmour;
     uint8_t byteArmTemp = 0, byteHlTemp = 0;
 
@@ -1696,25 +1145,20 @@ void CNetGame::Packet_VehicleSync(Packet *pkt) {
     else if (byteHlTemp == 0) icSync.bytePlayerHealth = 0;
     else icSync.bytePlayerHealth = byteHlTemp * 7;
 
-    // CURRENT WEAPON
     uint8_t byteTempWeapon;
     bsSync.Read(byteTempWeapon);
     icSync.byteCurrentWeapon ^= (byteTempWeapon ^ icSync.byteCurrentWeapon) & 0x3F;
 
     bool bCheck;
 
-    // siren
     bsSync.Read(bCheck);
     if (bCheck) icSync.byteSirenOn = 1;
-    // landinggear
     bsSync.Read(bCheck);
     if (bCheck) icSync.byteLandingGearState = 1;
 
-    // train speed
     bsSync.Read(bCheck);
     if (bCheck) bsSync.Read(icSync.HydraThrustAngle);
 
-    // triler id
     bsSync.Read(bCheck);
     if (bCheck) bsSync.Read(icSync.TrailerID);
 
@@ -1729,7 +1173,6 @@ void CNetGame::Packet_PassengerSync(Packet *pkt) {
     PLAYERID playerId;
 
     static PASSENGER_SYNC_DATA psSync;
- //   memset(&psSync, 0, sizeof(PASSENGER_SYNC_DATA));
 
     RakNet::BitStream bsPassengerSync((unsigned char *) pkt->data, pkt->length, false);
     bsPassengerSync.Read(bytePacketID);
@@ -1814,13 +1257,10 @@ void CNetGame::Packet_AimSync(Packet *p) {
     }
 }
 
-// name miss? eto take
-void
-CNetGame::ActorTakeDamage(PLAYERID actorId, eWeaponType weaponId, float ammount, int bodyPart) {
+void CNetGame::ActorTakeDamage(PLAYERID actorId, eWeaponType weaponId, float ammount, int bodyPart) {
     RakNet::BitStream bs;
 
-//    bs.Write((uint8_t) ID_CUSTOM_RPC);
-    bs.Write((bool)  true); // unused?
+    bs.Write((bool)  true);
     bs.Write((uint16_t) actorId);
     bs.Write((float)    ammount);
     bs.Write((uint32_t) weaponId);
@@ -1829,8 +1269,7 @@ CNetGame::ActorTakeDamage(PLAYERID actorId, eWeaponType weaponId, float ammount,
     pNetGame->GetRakClient()->RPC(&RPC_GiveActorDamage, &bs, HIGH_PRIORITY, RELIABLE_SEQUENCED, 0, false, UNASSIGNED_NETWORK_ID, 0);
 }
 
-void
-CNetGame::SendExtinguishPointWithWater(const CVector* point, const float* fRadius, const float* fWaterStrength) {
+void CNetGame::SendExtinguishPointWithWater(const CVector* point, const float* fRadius, const float* fWaterStrength) {
     static auto lastSend = GetTickCount();
 
     if( (GetTickCount() - lastSend) < 1000 )
@@ -1850,8 +1289,7 @@ CNetGame::SendExtinguishPointWithWater(const CVector* point, const float* fRadiu
     pNetGame->GetRakClient()->Send(&bs, HIGH_PRIORITY, RELIABLE, 0);
 }
 
-void
-CNetGame::sendTakeDamage(PLAYERID attacker, eWeaponType weaponId, float ammount, int bodyPart) {
+void CNetGame::sendTakeDamage(PLAYERID attacker, eWeaponType weaponId, float ammount, int bodyPart) {
     RakNet::BitStream bs;
 
     bs.Write((uint8_t) ID_CUSTOM_RPC);
@@ -1881,10 +1319,9 @@ void CNetGame::sendGiveDamage(PLAYERID taker, int weaponId, float ammount, int b
 }
 
 void CNetGame::GiveActorWeapon(Packet *p) {
-    DLOG("GiveActorWeapon");
     RakNet::BitStream bs((unsigned char*)p->data, p->length, false);
 
-    bs.IgnoreBits(40); // skip packet and rpc id
+    bs.IgnoreBits(40);
 
     PLAYERID    actorId;
     uint32      weaponId;
@@ -1898,10 +1335,9 @@ void CNetGame::GiveActorWeapon(Packet *p) {
 }
 
 void CNetGame::ActorAttack(Packet *p) {
-    DLOG("ActorAttack");
     RakNet::BitStream bs((unsigned char*)p->data, p->length, false);
 
-    bs.IgnoreBits(40); // skip packet and rpc id
+    bs.IgnoreBits(40);
 
     PLAYERID    actorId;
     PLAYERID    attackId;
@@ -1915,12 +1351,10 @@ void CNetGame::ActorAttack(Packet *p) {
         ScriptCommand(&TASK_SHOOT_AT_CHAR, pActor->m_dwGTAId, pTargetActor->GetPlayerPed()->m_pPed, 99999);
 }
 
-
 void CNetGame::SetPlayerTag(Packet *p) {
-    DLOG("SetPlayerTag");
     RakNet::BitStream bs((unsigned char*)p->data, p->length, false);
 
-    bs.IgnoreBits(40); // skip packet and rpc id
+    bs.IgnoreBits(40);
 
     PLAYERID    playerId;
     uint8       tagType;
@@ -1940,4 +1374,3 @@ void CNetGame::SetGameState(eNetworkState newState) {
 
     m_iGameState = newState;
 }
-
