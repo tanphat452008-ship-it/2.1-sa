@@ -71,10 +71,11 @@ class HudManager : Chat() {
     private external fun changeWeapon()
     private external fun nativeClickMenu(): Boolean
     var damageSound = 0
+
     fun toggleTorpedoButt(toggle: Boolean) {
         activity.runOnUiThread {
             val butt_torpedo = activity.findViewById<ImageView>(R.id.butt_torpedo)
-            if (toggle) butt_torpedo.visibility = View.VISIBLE else butt_torpedo.visibility = View.GONE
+            if (toggle) butt_torpedo?.visibility = View.VISIBLE else butt_torpedo?.visibility = View.GONE
         }
     }
 
@@ -217,14 +218,21 @@ class HudManager : Chat() {
             val serverMulti = Storage.getProperty(StorageElements.SERVER_MULTI, activity)
             val img = activity.findViewById<ImageView>(R.id.hud_logo_img)
             val text = activity.findViewById<TextView>(R.id.hud_logo_text)
-            val mainColor = Color.parseColor(serverColor)
-            img.setColorFilter(mainColor, PorterDuff.Mode.SRC_ATOP)
-            text.setTextColor(mainColor)
-            text.text = "$serverName "
+
+            // Bọc an toàn: Phòng trường hợp serverColor null hoặc chuỗi hex không hợp lệ
+            val mainColor = try {
+                if (!serverColor.isNullOrEmpty()) Color.parseColor(serverColor) else Color.WHITE
+            } catch (e: Exception) {
+                Color.WHITE
+            }
+
+            img?.setColorFilter(mainColor, PorterDuff.Mode.SRC_ATOP)
+            text?.setTextColor(mainColor)
+            text?.text = "${serverName ?: ""} "
             if (StringUtils.isNotBlank(serverMulti)) {
                 val multiText = activity.findViewById<TextView>(R.id.hud_logo_multi_text)
-                multiText.visibility = View.VISIBLE
-                multiText.text = "$serverMulti "
+                multiText?.visibility = View.VISIBLE
+                multiText?.text = "$serverMulti "
             }
         }
     }
@@ -241,7 +249,6 @@ class HudManager : Chat() {
     }
 
     init {
-
         camera_mode_butt = activity.findViewById(R.id.camera_mode_butt)
         camera_mode_butt.setOnClickListener { view: View? -> clickCameraMode() }
         // === damage informer
@@ -302,7 +309,7 @@ class HudManager : Chat() {
 
         // X2 click
         val multiText = activity.findViewById<TextView>(R.id.hud_logo_multi_text)
-        multiText.setOnClickListener { view: View? -> clickMultText() }
+        multiText?.setOnClickListener { view: View? -> clickMultText() }
         hud_weapon.setOnClickListener { v: View? -> changeWeapon() }
 
         hud_bg.post {
@@ -331,7 +338,7 @@ class HudManager : Chat() {
         }
         Utils.HideLayout(hud_gpsactive, false)
         val butt_torpedo = activity.findViewById<ImageView>(R.id.butt_torpedo)
-        butt_torpedo.setOnClickListener { view: View? -> sendTorpedo() }
+        butt_torpedo?.setOnClickListener { view: View? -> sendTorpedo() }
     }
 
     fun showUpdateTargetNotify(type: Int, text: String?) {
