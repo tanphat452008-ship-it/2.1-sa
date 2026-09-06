@@ -1,143 +1,122 @@
-//
-// Created on 15.10.2023.
-//
-
 #include "GPS.h"
-#include "net/netgame.h"
-#include "net/playerpool.h"
-#include "Entity/Ped/Ped.h"
-#include "game.h"
+#include "../game/game.h"
+#include "../net/netgame.h"
+#include "Entity/Ped/PlayerPed.h"
 #include "PathFind.h"
-#include "java_systems/HUD.h"
+#include "Radar.h"
+#include "Widgets/TouchInterface.h"
 
-void GPS::Draw() {
-//    float gpsDistance = 0;
-//    auto playa = CLocalPlayer::m_pPlayerPed;
-//    if(!playa)return;
-//    auto pPed = playa->m_pPed;
-//    if(!pPed)return;
-//    if (true) {
-//        bool isGamePaused = CTimer::GetIsPaused(), bScissors = (!isGamePaused);
-//        auto drawRadarOrMap = CTimer::GetIsPaused() || CHUD::bIsShow;
-////        auto FrontEndMenuManager = (uintptr_t *) (g_libGTASA + 0x008ED7C0);
-////        auto FrontEndMenuManager = (uintptr_t *) (g_libGTASA + 0x008ED7C0);
-//
-//        CPathFind &ThePaths = *(CPathFind *) (g_libGTASA + 0x00709894);
-//
-//        CVector destPosn = CVector(1868.0, -2034.0, 30.08);
-//        destPosn.z = CWorld::FindGroundZForCoord(destPosn.x, destPosn.y);
-//
-//        short nodesCount = 0;
-//
-//        ThePaths.DoPathSearch(
-//                PATH_TYPE_VEH,
-//                pPed->GetPosition(),
-//                CNodeAddress(),
-//                destPosn,
-//                resultNodes,
-//                &nodesCount,
-//                MAX_NODE_POINTS,
-//                &gpsDistance,
-//                999999.0f,
-//                nullptr,
-//                999999.0f,
-//                false,
-//                CNodeAddress(),
-//                false,
-//                false
-//                //playa->pVehicle->m_nVehicleSubType == VEHICLE_SUBTYPE_BOAT
-//        );
-//
-//        Log("nodesCount = %d = %d", nodesCount, gpsDistance);
-//        if(nodesCount > 0) {
-////            if (isTargetBlip && bScissors &&
-////                gpsDistance < pCfgClosestMaxGPSDistance->GetFloat()) {
-////                ClearRadarBlip(TargetBlip.m_nHandleIndex);
-////                gMobileMenu->m_TargetBlipHandle.m_nHandleIndex = 0;
-////                TargetBlip.m_nHandleIndex = 0;
-////                return;
-////            }
-//
-//            CPathNode *node;
-//            CVector2D nodePos;
-//            if (isGamePaused) {
-//                for (int i = 0; i < nodesCount; ++i) {
-//                    node = &ThePaths->pNodes[resultNodes[i].m_wAreaId][resultNodes[i].m_wNodeId];
-//                    nodePos = node->GetPosition2D();
-//                    TransformRealWorldPointToRadarSpace(nodePos, nodePos);
-//                    LimitRadarPoint(nodePos);
-//                    TransformRadarPointToScreenSpace(nodePoints[i], nodePos);
-//                    nodePoints[i] *= flMenuMapScaling;
-//                }
-//            } else {
-//                for (int i = 0; i < nodesCount; ++i) {
-//                    node = &ThePaths->pNodes[resultNodes[i].m_nAreaId][resultNodes[i].m_nNodeId];
-//                    nodePos = node->GetPosition2D();
-//                    TransformRealWorldPointToRadarSpace(nodePos, nodePos);
-//                    TransformRadarPointToScreenSpace(nodePoints[i], nodePos);
-//                }
-//            }
-//
-//            if (IsRadarVisible() || isGamePaused) {
-//                if (bScissors) SetScissorRect(radarRect); // Scissor
-//                RwRenderStateSet(rwRENDERSTATETEXTURERASTER, NULL);
-//
-//                unsigned int vertIndex = 0;
-//                --nodesCount;
-//
-//                CVector2D point[4], shift[2], dir;
-//                float angle;
-//                if (isGamePaused) {
-//                    float mp = gMobileMenu->m_fMapZoom - 140.0f;
-//                    if (mp < 140.0f) mp = 140.0f;
-//                    else if (mp > 960.0f) mp = 960.0f;
-//                    mp = mp / 960.0f + 0.4f;
-//                    mp *= lineWidth;
-//
-//                    for (int i = 0; i < nodesCount; i++) {
-//                        dir = CVector2D::Diff(nodePoints[i + 1], nodePoints[i]);
-//                        angle = atan2(dir.y, dir.x);
-//
-//                        sincosf(angle - 1.5707963f, &shift[0].y, &shift[0].x);
-//                        shift[0] *= mp;
-//                        sincosf(angle + 1.5707963f, &shift[1].y, &shift[1].x);
-//                        shift[1] *= mp;
-//
-//                        Setup2DVertex(lineVerts[vertIndex], nodePoints[i].x + shift[0].x, nodePoints[i].y + shift[0].y, color);
-//                        Setup2DVertex(lineVerts[++vertIndex], nodePoints[i + 1].x + shift[0].x, nodePoints[i + 1].y + shift[0].y, color);
-//                        Setup2DVertex(lineVerts[++vertIndex], nodePoints[i].x + shift[1].x, nodePoints[i].y + shift[1].y, color);
-//                        Setup2DVertex(lineVerts[++vertIndex], nodePoints[i + 1].x + shift[1].x, nodePoints[i + 1].y + shift[1].y, color);
-//                        ++vertIndex;
-//                    }
-//                } else {
-//                    for (int i = 0; i < nodesCount; i++) {
-//                        dir = CVector2D::Diff(nodePoints[i + 1], nodePoints[i]);
-//                        angle = atan2(dir.y, dir.x);
-//
-//                        sincosf(angle - 1.5707963f, &shift[0].y, &shift[0].x);
-//                        shift[0] *= lineWidth;
-//                        sincosf(angle + 1.5707963f, &shift[1].y, &shift[1].x);
-//                        shift[1] *= lineWidth;
-//
-//                        Setup2DVertex(lineVerts[vertIndex], nodePoints[i].x + shift[0].x, nodePoints[i].y + shift[0].y, color);
-//                        Setup2DVertex(lineVerts[++vertIndex], nodePoints[i + 1].x + shift[0].x, nodePoints[i + 1].y + shift[0].y, color);
-//                        Setup2DVertex(lineVerts[++vertIndex], nodePoints[i].x + shift[1].x, nodePoints[i].y + shift[1].y, color);
-//                        Setup2DVertex(lineVerts[++vertIndex], nodePoints[i + 1].x + shift[1].x, nodePoints[i + 1].y + shift[1].y, color);
-//                        ++vertIndex;
-//                    }
-//                }
-//                RwIm2DRenderPrimitive(rwPRIMTYPETRISTRIP, lineVerts, 4 * nodesCount);
-//                //if (bScissors) SetScissorRect(emptyRect); // Scissor
-//            }
-//        }
-//    }
+bool GPS::enabled = false;
+
+extern CGUI *pGUI;
+void GPS::DoPathDraw() {
+    if (!GPS::enabled) return;
+
+    auto playerPed = CLocalPlayer::GetPlayerPed();
+    if (!playerPed || !playerPed->m_pPed) return;
+
+    CPathFind& paths = CPathFind::Get();
+    CVector playerPos = playerPed->m_pPed->GetPosition();
+
+    short nodesCount = 0;
+    float dummyDist = 0.0f;
+
+    paths.DoPathSearch(
+            PATH_TYPE_VEH,
+            playerPos,
+            CNodeAddress(),
+            GPS::to,
+            resultNodes,
+            &nodesCount,
+            MAX_NODE_POINTS,
+            &dummyDist,
+            999999.0f,
+            nullptr,
+            999999.0f,
+            false,
+            CNodeAddress(),
+            false,
+            false
+    );
+
+    if (nodesCount <= 1) return;
+
+    bool isPaused = CTimer::m_CodePause || CTimer::m_UserPause;
+    float flMenuMapScaling = (float)RsGlobal->maximumHeight / 448.0f;
+
+    int validCount = 0;
+    for (int i = 0; i < nodesCount; ++i) {
+        CPathNode* node = paths.GetPathNode(resultNodes[i]);
+        if (!node) continue;
+
+        CVector2D worldPos = node->GetPosition2D();
+        CVector2D radarPos;
+        CVector2D screenPos;
+
+        CRadar::TransformRealWorldPointToRadarSpace(&radarPos, &worldPos);
+
+        if (isPaused) {
+            CRadar::TransformRadarPointToScreenSpace(&screenPos, &radarPos);
+            screenPos.x *= flMenuMapScaling;
+            screenPos.y *= flMenuMapScaling;
+        } else {
+            CRadar::LimitRadarPoint(&radarPos);
+            CRadar::TransformRadarPointToScreenSpace(&screenPos, &radarPos);
+        }
+
+        nodePoints[validCount++] = screenPos;
+    }
+
+    if (validCount <= 1) return;
+
+    bool bScissors = !isPaused;
+    if (bScissors) {
+        const auto* widget = CTouchInterface::m_pWidgets[WidgetIDs::WIDGET_RADAR];
+        if (widget) {
+            CRect rectCopy = widget->m_RectScreen;
+            SetScissorRect(&rectCopy);
+        }
+    }
+
+    RwRenderStateSet(rwRENDERSTATETEXTURERASTER, nullptr);
+    RwRenderStateSet(rwRENDERSTATEZTESTENABLE, (void*)FALSE);
+
+    for (int i = 0; i < validCount - 1; ++i) {
+        CVector2D start = nodePoints[i];
+        CVector2D end = nodePoints[i + 1];
+
+        CVector2D dir = end - start;
+        float len = sqrtf(dir.x * dir.x + dir.y * dir.y);
+        if (len < 0.1f) continue;
+
+        CVector2D normal = { -dir.y / len, dir.x / len };
+        float thickness = isPaused ? (GPS_LINE_WIDTH * flMenuMapScaling) : GPS_LINE_WIDTH;
+        normal *= (thickness * 0.5f);
+
+        Setup2DVertex(lineVerts[0], start.x - normal.x, start.y - normal.y);
+        Setup2DVertex(lineVerts[1], start.x + normal.x, start.y + normal.y);
+        Setup2DVertex(lineVerts[2], end.x - normal.x, end.y - normal.y);
+        Setup2DVertex(lineVerts[3], end.x + normal.x, end.y + normal.y);
+
+        RwIm2DRenderPrimitive(rwPRIMTYPETRISTRIP, lineVerts, 4);
+    }
+
+    CRect emptyRect = { 0, 0, 0, 0 };
+    if (bScissors) {
+        SetScissorRect(&emptyRect);
+    }
 }
 
-void GPS::Setup2dVertex(RwIm2DVertex &vertex, float x, float y) {
+void GPS::Set(CVector pos, bool toggle) {
+    GPS::to = pos;
+    GPS::enabled = toggle;
+}
+
+void GPS::Setup2DVertex(RwIm2DVertex &vertex, float x, float y) {
     vertex.x = x;
     vertex.y = y;
     vertex.u = vertex.v = 0.0f;
     vertex.z = CSprite2d::NearScreenZ + 0.0001f;
     vertex.rhw = CSprite2d::RecipNearClip;
-    vertex.emissiveColor = RWRGBALONG(GPS_LINE_R, GPS_LINE_G, GPS_LINE_B, GPS_LINE_A);
+    vertex.emissiveColor = RWRGBALONG(GPS_LINE_B, GPS_LINE_G, GPS_LINE_R, GPS_LINE_A); // RGBA -> BGRA
 }
