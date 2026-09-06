@@ -30,39 +30,12 @@ static uint32_t dwRLEDecompressSourceSize = 0;
 extern bool g_bIsTestMode;
 
 extern CGUI *pGUI;
-// Neiae/SAMP
+
 bool g_bPlaySAMP = false;
 
 void InitInMenu();
 void MainLoop();
 void HookCPad();
-
-
-#include "..//str_obfuscator_no_template.hpp"
-#define MAX_ENCRYPTED_TXD 2
-
-const cryptor::string_encryptor encrArch[MAX_ENCRYPTED_TXD] = {
-        //cryptor::create("texdb/txd/txd.txt", 19),
-        cryptor::create("texdb/gta3/gta3.txt", 21),
-        cryptor::create("texdb/gta_int/gta_int.txt", 27),
-        //cryptor::create("texdb/cars/cars.txt", 27),
-        //cryptor::create("texdb/skins/skins.txt", 27),
-};
-
-extern bool g_bIsTestMode;
-
-int lastOpenedFile;
-
-    bool isEncrypted(const char* szArch)
-{
-    for (int64 i = 0; i < MAX_ENCRYPTED_TXD; i++)
-    {
-        if (!strcmp(encrArch[i].decrypt(), szArch))
-            return true;
-    }
-
-    return false;
-}
 
 struct stFile
 {
@@ -72,7 +45,7 @@ struct stFile
 
 char lastFile[123];
 
-stFile*  NvFOpen(const char* r0, const char* r1, int r2, int r3)
+stFile* NvFOpen(const char* r0, const char* r1, int r2, int r3)
 {
     strcpy(lastFile, r1);
 
@@ -81,43 +54,36 @@ stFile*  NvFOpen(const char* r0, const char* r1, int r2, int r3)
 
 	sprintf(path, "%s%s", g_pszStorage, r1);
 
-	// ----------------------------
 	if(!strncmp(r1+12, "mainV1.scm", 10))
 	{
 		sprintf(path, "%sSAMP/main.scm", g_pszStorage);
 		Log("Loading %s", path);
 	}
-	// ----------------------------
 	if(!strncmp(r1+12, "SCRIPTV1.IMG", 12))
 	{
 		sprintf(path, "%sSAMP/script.img", g_pszStorage);
 		Log("Loading script.img..");
 	}
-	// ----------------------------
 	if(!strncmp(r1, "DATA/PEDS.IDE", 13))
 	{
 		sprintf(path, "%sSAMP/peds.ide", g_pszStorage);
 		Log("Loading peds.ide..");
 	}
-	// ----------------------------
 	if(!strncmp(r1, "DATA/VEHICLES.IDE", 17))
 	{
 		sprintf(path, "%sSAMP/vehicles.ide", g_pszStorage);
 		Log("Loading vehicles.ide..");
 	}
-
 	if (!strncmp(r1, "DATA/GTA.DAT", 12))
 	{
 		sprintf(path, "%sSAMP/gta.dat", g_pszStorage);
 		Log("Loading gta.dat..");
 	}
-
 	if (!strncmp(r1, "DATA/HANDLING.CFG", 17))
 	{
 		sprintf(path, "%sSAMP/handling.cfg", g_pszStorage);
 		Log("Loading handling.cfg..");
 	}
-
 	if (!strncmp(r1, "DATA/WEAPON.DAT", 15))
 	{
 		sprintf(path, "%sSAMP/weapon.dat", g_pszStorage);
@@ -125,9 +91,7 @@ stFile*  NvFOpen(const char* r0, const char* r1, int r2, int r3)
 	}
 
 #if VER_x32
-
-
-    auto *st = (stFile*)malloc(8);
+	auto *st = (stFile*)malloc(8);
 #else
 	auto *st = (stFile*)malloc(0x10);
 #endif
@@ -156,7 +120,6 @@ stFile*  NvFOpen(const char* r0, const char* r1, int r2, int r3)
 #include "game/Widgets/TouchInterface.h"
 #include "Clouds.h"
 #include "gps.h"
-
 
 void MainMenu_OnStartSAMP()
 {
@@ -187,23 +150,6 @@ void TouchEvent_hook(int type, int num, int posX, int posY)
 	if(!CGUI::OnTouchEvent(type, num, posX, posY))
 		return;
 
-    if (pGUI != nullptr)
-    {
-        switch (type)
-        {
-            case 2: // push
-                pGUI->touchEvent(ImVec2(posX, posY), TouchType::push);
-                break;
-
-            case 3: // move
-                pGUI->touchEvent(ImVec2(posX, posY), TouchType::move);
-                break;
-
-            case 1: // pop
-                pGUI->touchEvent(ImVec2(posX, posY), TouchType::pop);
-                break;
-        }
-    }
 	CTouchInterface::lastPosX = posX;
 	CTouchInterface::lastPosY = posY;
 
@@ -259,125 +205,102 @@ unsigned int MainMenuScreen__Update_hook(uintptr_t thiz, float a2)
 	return ret;
 }
 
+static char szLastBufferedName[40];
+int (*cHandlingDataMgr__FindExactWord)(uintptr_t thiz, char* line, char* nameTable, int entrySize, int entryCount);
+int cHandlingDataMgr__FindExactWord_hook(uintptr_t thiz, char* line, char* nameTable, int entrySize, int entryCount)
+{
+	//Log("dslkfjsakj = %s", nameTable[0]);
+	strncpy(&szLastBufferedName[0], line, entrySize);
+	return cHandlingDataMgr__FindExactWord(thiz, line, nameTable, entrySize, entryCount);
+}
+#include "cHandlingDataMgr.h"
 
+void cHandlingDataMgr__ConvertDataToGameUnits(uintptr_t *thiz, tHandlingData* handling)
+{
+	auto handlingId = cHandlingDataMgr::GetHandlingId(szLastBufferedName);
 
-#include "game/Radar.h"
-#include "World.h"
-#include "Mobile/MobileMenu/MobileMenu.h"
-#include "net/netgame.h"
+	CHandlingDefault::FillDefaultHandling((uint16_t)handlingId, handling);
+
+	CHook::CallFunction<void>(g_libGTASA + (VER_x32 ? 0x00570DC8 + 1 : 0x69343C), thiz, handling);
+}
 
 int lastNvEvent;
-
 #include "..//nv_event.h"
 #include "ResourceCrypt/ResourceCrypt.h"
 
-int32_t (*NVEventGetNextEvent_hooked)(NVEvent* ev, int waitMSecs);
-
+int32_t(*NVEventGetNextEvent_hooked)(NVEvent* ev, int waitMSecs);
 int32_t NVEventGetNextEvent_hook(NVEvent* ev, int waitMSecs)
 {
-    if (!ev)
-        return 0;
+	if(!ev)
+		return 0;
 
-    int32_t ret = NVEventGetNextEvent_hooked(ev, waitMSecs);
-    lastNvEvent = ev->m_type;
+	int32_t ret = NVEventGetNextEvent_hooked(ev, waitMSecs);
 
-    NVEvent event;
-    if (NVEventGetNextEvent(&event))
-    {
-        int type = event.m_data.m_multi.m_action & NV_MULTITOUCH_ACTION_MASK;
-        int num  = (event.m_data.m_multi.m_action & NV_MULTITOUCH_POINTER_MASK) >> NV_MULTITOUCH_POINTER_SHIFT;
+	lastNvEvent =  ev->m_type;
 
-        int x1 = event.m_data.m_multi.m_x1;
-        int y1 = event.m_data.m_multi.m_y1;
+	NVEvent event;
+	if(NVEventGetNextEvent(&event))
+	{
+		int type = event.m_data.m_multi.m_action & NV_MULTITOUCH_ACTION_MASK;
+		int num = (event.m_data.m_multi.m_action & NV_MULTITOUCH_POINTER_MASK) >> NV_MULTITOUCH_POINTER_SHIFT;
 
-        int x2 = event.m_data.m_multi.m_x2;
-        int y2 = event.m_data.m_multi.m_y2;
+		int x1 = event.m_data.m_multi.m_x1;
+		int y1 = event.m_data.m_multi.m_y1;
 
-        int x3 = event.m_data.m_multi.m_x3;
-        int y3 = event.m_data.m_multi.m_y3;
+		int x2 = event.m_data.m_multi.m_x2;
+		int y2 = event.m_data.m_multi.m_y2;
 
-        if (type == NV_MULTITOUCH_CANCEL)
-        {
-            type = NV_MULTITOUCH_UP;
-        }
-        auto AND_TouchEvent =
-                (void(*)(int, int, int, int))(g_libGTASA + (VER_x32 ? 0x00269740 + 1 : 0x31EC0C));
+		int x3 = event.m_data.m_multi.m_x3;
+		int y3 = event.m_data.m_multi.m_y3;
 
-        if ((x1 || y1) || num == 0)
-        {
-            if (num == 0 && type != NV_MULTITOUCH_MOVE)
-                AND_TouchEvent(type, 0, x1, y1);
-            else
-                AND_TouchEvent(NV_MULTITOUCH_MOVE, 0, x1, y1);
-        }
+		if (type == NV_MULTITOUCH_CANCEL)
+		{
+			type = NV_MULTITOUCH_UP;
+		}
 
-        if ((x2 || y2) || num == 1)
-        {
-            if (num == 1 && type != NV_MULTITOUCH_MOVE)
-                AND_TouchEvent(type, 1, x2, y2);
-            else
-                AND_TouchEvent(NV_MULTITOUCH_MOVE, 1, x2, y2);
-        }
+		if ((x1 || y1) || num == 0)
+		{
+			if (num == 0 && type != NV_MULTITOUCH_MOVE)
+			{
+				((void(*)(int, int, int posX, int posY))(g_libGTASA + (VER_x32 ? 0x00269740  + 1 : 0x31EC0C)))(type, 0, x1, y1); // AND_TouchEvent
+			}
+			else
+			{
+				((void(*)(int, int, int posX, int posY))(g_libGTASA +  (VER_x32 ? 0x00269740  + 1 : 0x31EC0C)))(NV_MULTITOUCH_MOVE, 0, x1, y1); // AND_TouchEvent
+			}
+		}
 
-        if ((x3 || y3) || num == 2)
-        {
-            if (num == 2 && type != NV_MULTITOUCH_MOVE)
-                AND_TouchEvent(type, 2, x3, y3);
-            else
-                AND_TouchEvent(NV_MULTITOUCH_MOVE, 2, x3, y3);
-        }
-    }
+		if ((x2 || y2) || num == 1)
+		{
+			if (num == 1 && type != NV_MULTITOUCH_MOVE)
+			{
+				((void(*)(int, int, int posX, int posY))(g_libGTASA +  (VER_x32 ? 0x00269740  + 1 : 0x31EC0C)))(type, 1, x2, y2); // AND_TouchEvent
+			}
+			else
+			{
+				((void(*)(int, int, int posX, int posY))(g_libGTASA +  (VER_x32 ? 0x00269740  + 1 : 0x31EC0C)))(NV_MULTITOUCH_MOVE, 1, x2, y2); // AND_TouchEvent
+			}
+		}
+		if ((x3 || y3) || num == 2)
+		{
+			if (num == 2 && type != NV_MULTITOUCH_MOVE)
+			{
+				((void(*)(int, int, int posX, int posY))(g_libGTASA +  (VER_x32 ? 0x00269740  + 1 : 0x31EC0C)))(type, 2, x3, y3); // AND_TouchEvent
+			}
+			else
+			{
+				((void(*)(int, int, int posX, int posY))(g_libGTASA +  (VER_x32 ? 0x00269740  + 1 : 0x31EC0C)))(NV_MULTITOUCH_MOVE, 2, x3, y3); // AND_TouchEvent
+			}
+		}
+	}
 
-    return ret;
+	return ret;
 }
 
-
-//тп по метке фикс by CROSS ECHO
-int (*CRadar__SetCoordBlip)(eBlipType type, CVector pos, unsigned int color, eBlipDisplay display, char* name);
-
-int CRadar__SetCoordBlip_hook(eBlipType type, CVector pos, unsigned int color, eBlipDisplay display, char* name)
+signed int (*OS_FileOpen)(unsigned int a1, OSFile *intoFile, const char *filename, int a4);
+signed int OS_FileOpen_hook(unsigned int a1, OSFile *intoFile, const char *filename, int a4)
 {
-    DLOG("CRadar__SetCoordBlip_hook CALLED: name=%s pos=(%f,%f,%f)",
-         name ? name : "NULL", pos.x, pos.y, pos.z);
-
-    if (pNetGame && name && !strncmp(name, "CODEWAY", 7))
-    {
-        float z = CWorld::FindGroundZForCoord(pos.x, pos.y) + 1.5f;
-
-        DLOG("OnPlayerClickMap: %f, %f, %f", pos.x, pos.y, z);
-
-        RakNet::BitStream bsSend;
-        bsSend.Write(pos.x);
-        bsSend.Write(pos.y);
-        bsSend.Write(z);
-
-        pNetGame->GetRakClient()->RPC(
-                &RPC_MapMarker,
-                &bsSend,
-                HIGH_PRIORITY,
-                RELIABLE,
-                0,
-                false,
-                UNASSIGNED_NETWORK_ID,
-                nullptr
-        );
-    }
-
-    return CRadar__SetCoordBlip(type, pos, color, display, name);
-}
-
-
-signed int (*OS_FileOpen)(unsigned int a1, int *a2, const char *a3, int a4);
-signed int OS_FileOpen_hook(unsigned int a1, int *a2, const char *a3, int a4)
-{
-    signed int retn = OS_FileOpen(a1, a2, a3, a4);
-
-    if (isEncrypted(a3))
-    {
-        lastOpenedFile = *a2;
-    }
-
-    return retn;
+    return OS_FileOpen(a1, intoFile, filename, a4);
 }
 
 size_t (*OS_FileRead)(OSFile a1, void *buffer, size_t numBytes);
@@ -385,8 +308,15 @@ size_t OS_FileRead_hook(OSFile a1, void *buffer, size_t numBytes)
 {
     dwRLEDecompressSourceSize = numBytes;
 
-    return OS_FileRead(a1, buffer, numBytes);
+    if (!numBytes) {
+        return 0;
+    }
 
+    size_t result = OS_FileRead(a1, buffer, numBytes);
+    if (CResourceCrypt::IsEncryptedFile((uint8 *) buffer)) {
+        CResourceCrypt::DecryptStream(static_cast<char *>(buffer));
+    }
+    return result;
 }
 
 extern char g_iLastBlock[123];
@@ -396,53 +326,6 @@ int *LoadFullTexture_hook(TextureDatabaseRuntime *thiz, unsigned int a2)
 	strcpy(g_iLastBlock, thiz->name);
 
     return LoadFullTexture(thiz, a2);
-}
-//
-void (*RLEDecompress)(uint8_t* pDest, size_t uiDestSize, uint8_t const* pSrc, size_t uiSegSize, uint32_t uiEscape);
-void RLEDecompress_hook(uint8_t* pDest, size_t uiDestSize, const uint8_t* pSrc, size_t uiSegSize, uint32_t uiEscape) {
-    if (!pDest || !pSrc || uiDestSize == 0 || uiSegSize == 0) {
-		// Обработка некорректных входных данных или размеров
-		// Здесь можно сгенерировать исключение или вернуть код ошибки
-		return;
-	}
-
-	const uint8_t* pTempSrc = pSrc;
-	const uint8_t* const pEndOfDest = pDest + uiDestSize;
-	const uint8_t* const pEndOfSrc = pSrc + dwRLEDecompressSourceSize; // Предполагается, что dwRLEDecompressSourceSize определено правильно
-
-	try {
-		while (pDest < pEndOfDest && pTempSrc < pEndOfSrc) {
-			if (*pTempSrc == uiEscape) {
-				if (pTempSrc + 1 >= pEndOfSrc || pTempSrc[1] == 0 || pTempSrc + 2 + uiSegSize > pEndOfSrc) {
-					// Обработка ошибки, неверное значение ucCurSeg или недостаточно данных в исходном буфере
-					throw std::runtime_error("RLE ERROR 1");
-				}
-
-				uint8_t ucCurSeg = pTempSrc[1];
-				while (ucCurSeg--) {
-					if (pDest + uiSegSize > pEndOfDest) {
-						// Обработка ошибки, недостаточно места в целевом буфере
-						throw std::runtime_error("RLE ERROR 2");
-					}
-					memcpy(pDest, pTempSrc + 2, uiSegSize);
-					pDest += uiSegSize;
-				}
-				pTempSrc += 2 + uiSegSize;
-			} else {
-				if (pDest + uiSegSize > pEndOfDest || pTempSrc + uiSegSize > pEndOfSrc) {
-					// Обработка ошибки, недостаточно данных в исходном буфере или недостаточно места в целевом буфере
-					throw std::runtime_error("RLE ERROR 3");
-				}
-				memcpy(pDest, pTempSrc, uiSegSize);
-				pDest += uiSegSize;
-				pTempSrc += uiSegSize;
-			}
-		}
-
-		dwRLEDecompressSourceSize = 0;
-	} catch (const std::exception& e) {
-		DLOG("%s", e.what());
-	}
 }
 
 int (*CustomPipeRenderCB)(uintptr_t resEntry, uintptr_t object, uint8_t type, uint32_t flags);
@@ -584,8 +467,8 @@ int CTextureDatabaseRuntime__GetEntry_hook(TextureDatabaseRuntime *a1, const cha
 #include "game/Birds.h"
 #include "game/PathFind.h"
 #include "game/FileLoader.h"
-#include "game/Shadow/RealTimeShadowManager.h"
-#include "Shadow/Shadows.h"
+#include "game/RealTimeShadowManager.h"
+#include "Shadows.h"
 #include "Widgets/WidgetRadar.h"
 #include "graphics/RQShader.h"
 #include "Pipelines/CustomCar/CustomCarEnvMapPipeline.h"
@@ -600,14 +483,12 @@ int CTextureDatabaseRuntime__GetEntry_hook(TextureDatabaseRuntime *a1, const cha
 #include "Mobile/MobileSettings/MobileSettings.h"
 #include "EntryExitManager.h"
 #include "Occlusion.h"
-#include "Mobile/MobileMenu/MobileMenu.h"
-#include "BulletTraces.h"
 
 void InjectHooks()
 {
 	Log("InjectHooks");
 
-    COcclusion::InjectHooks();
+    //COcclusion::InjectHooks();
     CEntryExitManager::InjectHooks();
     CTaskSimpleUseGun::InjectHooks();
     CIplStore::InjectHooks();
@@ -618,12 +499,10 @@ void InjectHooks()
     CAEAudioEntity::InjectHooks();
     CAEVehicleAudioEntity::InjectHooks();
     CMirrors::InjectHooks();
-    CMobileMenu::InjectHooks();
     CMobileSettings::InjectHooks();
 
     CWeapon::InjectHooks();
     CWeaponInfo::InjectHooks();
-    CBulletTraces::InjectHooks();
 
 	CHook::Write(g_libGTASA + (VER_x32 ? 0x678954 : 0x84F2D0), &Scene);
 
@@ -665,7 +544,7 @@ void InjectHooks()
 	CAdjustableHUD::InjectHooks();
 
 	// new
-	CClouds::InjectHooks();
+	// CClouds::InjectHooks();
 	CWeather::InjectHooks();
 	RenderBuffer::InjectHooks();
     CTimeCycle::InjectHooks();
@@ -677,8 +556,8 @@ void InjectHooks()
 	//CPathFind::InjectHooks();
 	CSprite2d::InjectHooks();
 	//CFileLoader::InjectHooks();
-	//CShadows::InjectHooks();
-    CPickups::InjectHooks();
+	CShadows::InjectHooks();
+    //CPickups::InjectHooks();
 	CRenderer::InjectHooks();
 	CStreamingInfo::InjectHooks();
 	TextureDatabase::InjectHooks();
@@ -686,8 +565,9 @@ void InjectHooks()
 	TextureDatabaseRuntime::InjectHooks();
     CCustomBuildingDNPipeline::InjectHooks();
     CWidgetRadar::InjectHooks();
+    CRadar::InjectHooks();
 
-    CRealTimeShadowManager::InjectHooks();
+    // CRealTimeShadowManager::InjectHooks();
 }
 
 void (*NvUtilInit)();
@@ -697,7 +577,19 @@ void NvUtilInit_hook()
 
     NvUtilInit();
 
-    g_pszStorage = (char*)(g_libGTASA + (VER_x32 ? 0x6D687C : 0x8B46A8)); // StorageRootBuffer
+    static char sStoragePath[] = "/storage/emulated/0/TESTLIT/";
+    uintptr_t addrs[] = {
+            g_libGTASA + (VER_x32 ? 0x679698 : 0x850D50),
+            g_libGTASA + (VER_x32 ? 0x679984 : 0x851328)
+    };
+
+    for (auto addr : addrs) {
+        CHook::UnFuck(addr);
+        *(const char**)addr = sStoragePath;
+    }
+
+    g_pszStorage = sStoragePath;
+    // g_pszStorage = (char*)(g_libGTASA + (VER_x32 ? 0x6D687C : 0x8B46A8)); // StorageRootBuffer
 
     CLoader::loadSetting();
 
@@ -880,7 +772,7 @@ void InstallSpecialHooks()
 //	CHook::InlineHook("_ZN25CCustomBuildingDNPipeline18CustomPipeRenderCBEP10RwResEntryPvhj", &CustomPipeRenderCB_hook, &CustomPipeRenderCB);
 //#endif
 
-   	CHook::InstallPLT(g_libGTASA + (VER_x32 ? 0x6701D4 : 0x840708), &RLEDecompress_hook, &RLEDecompress);
+   	//CHook::InstallPLT(g_libGTASA + (VER_x32 ? 0x6701D4 : 0x840708), &RLEDecompress_hook, &RLEDecompress);
 	//
 	CHook::InlineHook("_ZN22TextureDatabaseRuntime15LoadFullTextureEj", &LoadFullTexture_hook, &LoadFullTexture);
 
@@ -892,14 +784,18 @@ void InstallSpecialHooks()
 
 	CHook::Redirect("_ZN5CGame20InitialiseRenderWareEv", &CGame::InitialiseRenderWare);
 	CHook::InlineHook("_ZN14MainMenuScreen6UpdateEf", &MainMenuScreen__Update_hook, &MainMenuScreen__Update);
-	//CHook::InlineHook("_Z11OS_FileOpen14OSFileDataAreaPPvPKc16OSFileAccessType", &OS_FileOpen_hook, &OS_FileOpen);
+	CHook::InlineHook("_Z11OS_FileOpen14OSFileDataAreaPPvPKc16OSFileAccessType", &OS_FileOpen_hook, &OS_FileOpen);
+
+	CHook::InlineHook("_ZN16cHandlingDataMgr13FindExactWordEPcS0_ii", &cHandlingDataMgr__FindExactWord_hook, &cHandlingDataMgr__FindExactWord);
+
+	CHook::InstallPLT(g_libGTASA + (VER_x32 ? 0x0067125C : 0x842150), &cHandlingDataMgr__ConvertDataToGameUnits);
 
 	CHook::InlineHook("_Z19NVEventGetNextEventP7NVEventi", NVEventGetNextEvent_hook, &NVEventGetNextEvent_hooked);
 
     CHook::InlineHook("_Z15OS_ThreadLaunchPFjPvES_jPKci16OSThreadPriority", &custom_OS_ThreadLaunch, &orig_OS_ThreadLaunch);
 }
 
-// thanks Codeesar
+// thanks Codeesar for dont work damage calculator :(
 struct stPedDamageResponse
 {
 	CEntity* pEntity;
@@ -1198,7 +1094,6 @@ void CMatrix__SetScale_hook(void* thiz, float x, float y, float z)
 	CMatrix__SetScale(thiz, x, y, z);
 }
 
-
 void (*CAutomobile__UpdateWheelMatrix)(CVehicle* thiz, int, int);
 void CAutomobile__UpdateWheelMatrix_hook(CVehicle* thiz, int nodeIndex, int flags)
 {
@@ -1230,9 +1125,6 @@ void CAutomobile__PreRender_hook(CVehicle* thiz)
     if (pVeh) {
         pVeh->ProcessWheelsOffset();
         g_pLastProcessedVehicleMatrix = pVeh;
-
-        pModelInfoStart->m_fWheelSizeFront = pVeh->m_fWheelSize;
-        pModelInfoStart->m_fWheelSizeRear = pVeh->m_fWheelSize;
 
         if (pVeh->neon.IsSet()) {
 			pVeh->neon.Render(pVeh->m_pVehicle);
@@ -1274,6 +1166,7 @@ void CCam__Process_hook(CCam* thiz)
     CVector vecSpeed;
     CVehicleSamp* veh = nullptr;
 
+    CCamera& TheCamera = *reinterpret_cast<CCamera*>(g_libGTASA + (VER_x32 ? 0x00951FA8 : 0xBBA8D0));
     float& CAR_FOV_START_SPEED = *(float*)(g_libGTASA + (VER_x32 ? 0x006A9FD0 : 0x8855D4));
     float old = CAR_FOV_START_SPEED;
 
@@ -1303,11 +1196,11 @@ void CCam__Process_hook(CCam* thiz)
             auto gtaPed = CLocalPlayer::GetPlayerPed()->m_pPed;
             if (auto pPed = CLocalPlayer::GetPlayerPed())
             {
-                CCamera::Get().m_uiTransitionDuration = 0xFFFFFFFF;
-                CCamera::Get().m_uiTransitionDurationTargetCoors = 0xFFFFFFFF;
-                CCamera::Get().m_bJust_Switched = false;
+                TheCamera.m_uiTransitionDuration = 0xFFFFFFFF;
+                TheCamera.m_uiTransitionDurationTargetCoors = 0xFFFFFFFF;
+                TheCamera.m_bJust_Switched = false;
 
-                gtaPed->m_fAimingRotation = gtaPed->m_fCurrentRotation = atan2(CCamera::Get().m_aCams[0].Front.y, CCamera::Get().m_aCams[0].Front.x) - M_PI_2;
+                gtaPed->m_fAimingRotation = gtaPed->m_fCurrentRotation = atan2(TheCamera.m_aCams[0].Front.y, TheCamera.m_aCams[0].Front.x) - M_PI_2;
 
                 CFirstPersonCamera::ProcessCameraOnFoot(thiz, pPed);
             }
@@ -1320,9 +1213,9 @@ void CCam__Process_hook(CCam* thiz)
             CPedSamp* pPed = CLocalPlayer::GetPlayerPed();
             if (pPed)
             {
-                CCamera::Get().m_uiTransitionDuration = 0xFFFFFFFF;
-                CCamera::Get().m_uiTransitionDurationTargetCoors = 0xFFFFFFFF;
-                CCamera::Get().m_bJust_Switched = false;
+                TheCamera.m_uiTransitionDuration = 0xFFFFFFFF;
+                TheCamera.m_uiTransitionDurationTargetCoors = 0xFFFFFFFF;
+                TheCamera.m_bJust_Switched = false;
 
                 CFirstPersonCamera::ProcessCameraInVeh(thiz, pPed, veh);
             }
@@ -1631,13 +1524,6 @@ bool CEventKnockOffBike__AffectsPed_hook(uintptr_t *thiz, CPed *a2)
 	return false;
 }
 
-bool (*CWeapon__Fire)(CEntity* firingEntity, CVector* origin, CVector* muzzlePosn, CEntity* targetEntity, CVector* target, CVector* originForDriveBy);
-bool CWeapon__Fire_hook(CEntity* firingEntity, CVector* origin, CVector* muzzlePosn, CEntity* targetEntity, CVector* target, CVector* originForDriveBy) {
-	auto res = CWeapon__Fire(firingEntity, origin, muzzlePosn, targetEntity, target, originForDriveBy);
-	CHUD::updateAmmo();
-	return res;
-}
-
 void (*CPed__SetCurrentWeapon)(CPed* thiz, eWeaponType weaponType);
 void CPed__SetCurrentWeapon_hook(CPed* thiz, eWeaponType weaponType) {
 	CPed__SetCurrentWeapon(thiz, weaponType);
@@ -1659,74 +1545,7 @@ long long CAnimBlendNode__FindKeyFrame_hook(CAnimBlendNode *thiz, float fCurrent
 }
 
 #include "../SkyBox.h"
-#include "StoredMaterials.h"
-
 int g_iLastRenderedObject;
-CStoredMaterials gStoredEntityMaterials;
-
-RwObject* RwFrameForAllObjectsCallback(RwObject* object, void* data) {
-    if (object->type != rpATOMIC)
-        return object;
-
-    const auto* atomic = reinterpret_cast<RpAtomic*>(object);
-    if (!atomic->geometry)
-        return object;
-
-    const auto* geometry = atomic->geometry;
-    const auto* pObject = reinterpret_cast<CObjectSamp*>(data);
-    if (!pObject)
-        return object;
-
-    const int numMaterials = std::min(geometry->matList.numMaterials, 16);
-    const auto materials = std::span(geometry->matList.materials, numMaterials);
-    const auto objMaterials = std::span(pObject->m_pMaterials, numMaterials);
-
-    std::transform(
-            materials.begin(), materials.end(),
-            objMaterials.begin(),
-            materials.begin(),
-            [](RpMaterial* material, const MaterialInfo& objMaterial) {
-                if (objMaterial.m_bCreated && objMaterial.pTex &&
-                    material && material->texture)
-                {
-                    gStoredEntityMaterials.Add(&material->texture);
-                    material->texture = objMaterial.pTex;
-                }
-                return material;
-            }
-    );
-
-    return object;
-}
-
-RwObject* ObjectMaterialTextCallBack(RwObject* object, void* data) {
-    const auto* pObject = reinterpret_cast<CObjectSamp*>(data);
-    if (!pObject || object->type != rpATOMIC)
-        return object;
-
-    const auto* atomic = reinterpret_cast<RpAtomic*>(object);
-    if (!atomic || !atomic->geometry || !pObject->m_MaterialTextTexture || atomic->object.object.type != 1)
-        return object;
-
-    RpGeometry* geometry = atomic->geometry;
-    const int numMaterials = std::clamp(geometry->matList.numMaterials, 0, 15);
-    if (numMaterials < 1)
-        return object;
-
-    const auto materials = std::span(geometry->matList.materials, numMaterials);
-    const auto textures = std::span(pObject->m_MaterialTextTexture, numMaterials);
-
-    std::transform(materials.begin(), materials.end(), textures.begin(), materials.begin(),
-                   [](RpMaterial* material, RwTexture* texture) {
-                       if (texture && material && material->texture) {
-                           gStoredEntityMaterials.Add(&material->texture);
-                           material->texture = texture;
-                       }
-                       return material;
-                   });
-
-    return object;
-}
 
 void(*CEntity__Render)(CEntity*);
 void CEntity__Render_hook(CEntity* entity) {
@@ -1737,37 +1556,11 @@ void CEntity__Render_hook(CEntity* entity) {
         }
 	}
 
-    if (!entity)
-        return;
-
-    const auto atomic = entity->m_pRwObject;
-    if (!atomic || !atomic->parent)
-        return;
-
-    const auto clump = entity->m_pRwClump;
-    if (!clump)
-        return;
-
     if ((entity->IsPed() || entity->IsObject()) && CMirrors::bRenderingReflection)
         return;
 
-    if (pNetGame && CLocalPlayer::GetPlayerPed()) {
-        if (CGame::GetGameInit() && entity->m_matrix) {
-            if (auto pObject = CObjectPool::GetObjectFromGtaPtr(entity)) {
-                if (pObject->m_bMaterials) {
-                    RwFrameForAllObjects((RwFrame*)atomic->parent, RwFrameForAllObjectsCallback, pObject);
-                }
-                if (pObject->m_bHasMaterialText) {
-                    RwFrameForAllObjects((RwFrame*)atomic->parent, ObjectMaterialTextCallBack, pObject);
-                }
-            }
-        }
-    }
-
     g_iLastRenderedObject = entity->m_nModelIndex;
     CEntity__Render(entity);
-
-    gStoredEntityMaterials.Reset();
 }
 
 void(*CFireManager__ExtinguishPointWithWater)(uintptr* thiz, CVector point, float fRadius, float fWaterStrength);
@@ -1782,9 +1575,46 @@ int64 TextureListing_GetMipCount() {
     return 1;
 }
 
+int (*CRadar__SetCoordBlip)(int r0, float X, float Y, float Z, int r4, int r5, char* name);
+int CRadar__SetCoordBlip_hook(int r0, float X, float Y, float Z, int r4, int r5, char* name)
+{
+    if(pNetGame && !strncmp(name, "CODEWAY", 7))
+    {
+        float fFindZ = CWorld::FindGroundZForCoord(X, Y) + 1.5f;
+
+        if(pNetGame->GetGameState() != eNetworkState::CONNECTED) return 0;
+
+        RakNet::BitStream bsSend;
+        bsSend.Write(X);
+        bsSend.Write(Y);
+        bsSend.Write(fFindZ);
+        pNetGame->GetRakClient()->RPC(&RPC_MapMarker, &bsSend, HIGH_PRIORITY, RELIABLE, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
+    }
+
+    return CRadar__SetCoordBlip(r0, X, Y, Z, r4, r5, name);
+}
+
+void(*FxInfoGroundCollide_c__GetValue)();
+void FxInfoGroundCollide_c__GetValue_hook()
+{
+
+}
+
+uint32_t(*HashString)(const char* s);
+uint32_t HashString_hook(const char* s)
+{
+    const char* p = &s[0];
+    uint32_t hashPart = 0;
+    while(*p != 0)
+    {
+    hashPart = 33 * hashPart + *p;
+    ++p;
+    }
+    return (hashPart + (hashPart >> 5));
+}
+
 void InstallHooks()
 {
-    // вода из пожарки
     CHook::InstallPLT(g_libGTASA + (VER_x32 ? 0x66F91C : 0x83F8A0), &CFireManager__ExtinguishPointWithWater_hook, &CFireManager__ExtinguishPointWithWater);
 
 	// retexture
@@ -1792,17 +1622,22 @@ void InstallHooks()
 
 	CHook::Redirect("_Z13RenderEffectsv", &RenderEffects);
 
-	// update hud :C
-	CHook::InlineHook("_ZN7CWeapon4FireEP7CEntityP7CVectorS3_S1_S3_S3_", &CWeapon__Fire_hook, &CWeapon__Fire); // hud update. mb sync suda podkinut'?
+    // CHook::InlineHook("_ZN6CRadar12SetCoordBlipE9eBlipType7CVectorj12eBlipDisplayPc", &CRadar__SetCoordBlip_hook, &CRadar__SetCoordBlip);
+
+    // ---------- JPATCH ----------
+    // CHook::InlineHook("_ZN21FxInfoGroundCollide_c8GetValueEffffhPv", &FxInfoGroundCollide_c__GetValue_hook, &FxInfoGroundCollide_c__GetValue);
+    CHook::InlineHook("_Z10HashStringPKc", &HashString_hook, &HashString);
+    // ---------- JPATCH END ----------
 
     // WTFBUG lol
     CHook::InlineHook("_ZN4CPed16SetCurrentWeaponE11eWeaponType", &CPed__SetCurrentWeapon_hook, &CPed__SetCurrentWeapon);
 
-	CHook::Redirect("_Z19PlayerIsEnteringCarv", &PlayerIsEnteringCar); // crash
+	// CHook::Redirect("_Z19PlayerIsEnteringCarv", &PlayerIsEnteringCar); // crash
 
 	// no fall bike
 	CHook::InlineHook("_ZNK18CEventKnockOffBike10AffectsPedEP4CPed", &CEventKnockOffBike__AffectsPed_hook, &CEventKnockOffBike__AffectsPed);
 
+    // TODO: FIX
 	// Bullet sync
     CHook::InlineHook("_ZN7CWeapon14FireInstantHitEP7CEntityP7CVectorS3_S1_S3_S3_bb", &CWeapon__FireInstantHit_hook, &CWeapon__FireInstantHit);
 	CHook::InlineHook("_ZN7CWeapon10FireSniperEP4CPedP7CEntityP7CVector", &CWeapon__FireSniper_hook, &CWeapon__FireSniper);
@@ -1845,6 +1680,7 @@ void InstallHooks()
 
     CHook::InlineHook("_ZN14MainMenuScreen6OnExitEv", &MainMenuScreen__OnExit_hook, &MainMenuScreen__OnExit);
 
+    // TODO: FIX
 	CHook::InlineHook("_ZN11CAutomobile9PreRenderEv", &CAutomobile__PreRender_hook, &CAutomobile__PreRender);
 	CHook::InlineHook("_ZN11CAutomobile17UpdateWheelMatrixEii", &CAutomobile__UpdateWheelMatrix_hook, &CAutomobile__UpdateWheelMatrix);
 	CHook::InlineHook("_ZN7CMatrix6RotateEfff", &CMatrix__Rotate_hook, &CMatrix__Rotate);
@@ -1861,7 +1697,6 @@ void InstallHooks()
 
 	CHook::InlineHook("_ZN16CTaskSimpleGetUp10ProcessPedEP4CPed", &CTaskSimpleGetUp__ProcessPed_hook, &CTaskSimpleGetUp__ProcessPed); // CTaskSimpleGetUp::ProcessPed
 
-    CHook::InlineHook("_ZN6CRadar12SetCoordBlipE9eBlipType7CVectorj12eBlipDisplayPc",CRadar__SetCoordBlip_hook,&CRadar__SetCoordBlip);
 
 	CHook::InlineHook("_Z23RwResourcesFreeResEntryP10RwResEntry", &RwResourcesFreeResEntry_hook, &RwResourcesFreeResEntry);
 
