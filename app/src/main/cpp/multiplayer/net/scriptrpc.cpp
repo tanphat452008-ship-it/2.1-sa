@@ -9,7 +9,6 @@
 #include "java_systems/RadialMenu.h"
 #include "game/Camera.h"
 #include "game/Collision/ColStore.h"
-
 extern CGUI *pGUI;
 
 void ScrDisplayGameText(RPCParameters *rpcParams)
@@ -53,37 +52,22 @@ void ScrSetGravity(RPCParameters *rpcParams)
 void ScrSetPlayerPos(RPCParameters *rpcParams)
 {
     LOGRPC("RPC: ScrSetPlayerPos");
+	auto Data = reinterpret_cast<unsigned char *>(rpcParams->input);
+	int iBitLength = rpcParams->numberOfBitsOfData;
 
-    auto data  = reinterpret_cast<unsigned char*>(rpcParams->input);
-    int bitLen = rpcParams->numberOfBitsOfData;
+	RakNet::BitStream bsData((unsigned char*)Data,(iBitLength/8)+1,false);
 
-    RakNet::BitStream bsData(data, (bitLen / 8) + 1, false);
+	CVector pos;
+	bsData.Read(pos.x);
+	bsData.Read(pos.y);
+	bsData.Read(pos.z);
 
-    CVector pos{};
-    bsData.Read(pos.x);
-    bsData.Read(pos.y);
-    bsData.Read(pos.z);
+	auto pPed = CGame::FindPlayerPed();
 
-    CPedSamp* pLocalPed = CLocalPlayer::GetPlayerPed();
-    if (!pLocalPed || !pLocalPed->m_pPed)
-        return;
-
-    // Refresh streaming and collision
-    CGame::RefreshStreamingAt(pos.x, pos.y);
-    CColStore::RequestCollision(&pos, CGame::currArea);
-
-    // Safety Z: Tránh kẹt map
-    pos.z += 1.0f;
-
-    if (pLocalPed->m_pPed->IsInVehicle())
-        pLocalPed->m_pPed->RemoveFromVehicleAndPutAt(pos);
-    else
-        pLocalPed->m_pPed->Teleport(pos, false);
-
-    // Cập nhật camera và gắn camera vào nhân vật ngay lập tức
-    CCamera::Get().pTargetEntity = pLocalPed->m_pPed;
-    CCamera::Get().RestoreWithJumpCut();
-    CCamera::SetBehindPlayer();
+	if(pPed->m_pPed->IsInVehicle())
+		pPed->m_pPed->RemoveFromVehicleAndPutAt(pos);
+	else
+		pPed->m_pPed->Teleport(pos, false);
 }
 
 void ScrSetCameraPos(RPCParameters *rpcParams)
@@ -123,10 +107,7 @@ void ScrSetPlayerFacingAngle(RPCParameters *rpcParams)
 	float fAngle;
 	RakNet::BitStream bsData((unsigned char*)Data,(iBitLength/8)+1,false);
 	bsData.Read(fAngle);
-
-	CPedSamp *pLocalPed = CLocalPlayer::GetPlayerPed();
-	if(pLocalPed && pLocalPed->m_pPed)
-		pLocalPed->ForceTargetRotation(fAngle);
+	CGame::FindPlayerPed()->ForceTargetRotation(fAngle);
 }
 
 void ScrSetFightingStyle(RPCParameters *rpcParams)
@@ -168,9 +149,8 @@ void ScrSetPlayerSkin(RPCParameters *rpcParams)
 		CLocalPlayer::GetPlayerPed()->SetModelIndex(uiSkin);
 	else
 	{
-		CRemotePlayer *pPlayer = CPlayerPool::GetAt(iPlayerID);
-		if(pPlayer && pPlayer->GetPlayerPed())
-			pPlayer->GetPlayerPed()->SetModelIndex(uiSkin);
+		if(CPlayerPool::GetSpawnedPlayer(iPlayerID) && CPlayerPool::GetAt(iPlayerID)->GetPlayerPed())
+			CPlayerPool::GetAt(iPlayerID)->GetPlayerPed()->SetModelIndex(uiSkin);
 	}
 }
 
@@ -241,7 +221,7 @@ void ScrClearPlayerAnimations(RPCParameters *rpcParams)
         if(CPlayerPool::GetSpawnedPlayer(playerId))
             pPlayerPed = CPlayerPool::GetAt(playerId)->GetPlayerPed();
     }
-
+		
     if(pPlayerPed)
     {
         pPlayerPed->ClearAnimations();
@@ -337,8 +317,8 @@ void ScrSetPlayerColor(RPCParameters *rpcParams)
 	if(playerId == CPlayerPool::GetLocalPlayerID())
 	{
         CLocalPlayer::SetPlayerColor(dwColor);
-	}
-	else
+	} 
+	else 
 	{
 		CRemotePlayer *pPlayer = CPlayerPool::GetAt(playerId);
 		if(pPlayer)	pPlayer->SetPlayerColor(dwColor);
@@ -371,7 +351,7 @@ void ScrSetPlayerName(RPCParameters *rpcParams)
 
 	Log("byteSuccess = %d", byteSuccess);
 	if (byteSuccess == 1) CPlayerPool::SetPlayerName(playerId, szNewName);
-
+	
 	// Extra addition which we need to do if this is the local player;
 	if( CPlayerPool::GetLocalPlayerID() == playerId )
 		CPlayerPool::SetLocalPlayerName( szNewName );
@@ -387,24 +367,15 @@ void ScrSetPlayerPosFindZ(RPCParameters *rpcParams)
 	RakNet::BitStream bsData((unsigned char*)Data,(iBitLength/8)+1,false);
 
 	CVector vecPos;
+
 	bsData.Read(vecPos.x);
 	bsData.Read(vecPos.y);
 	bsData.Read(vecPos.z);
 
-    // BƯỚC 1: Nạp địa hình trước
-    CGame::RefreshStreamingAt(vecPos.x, vecPos.y);
-    CColStore::RequestCollision(&vecPos, CGame::currArea);
-
-    // BƯỚC 2: Sau khi nạp địa hình mới tìm độ cao Z chính xác
-	float fGroundZ = CGame::FindGroundZForCoord(vecPos.x, vecPos.y, vecPos.z);
-    if(fGroundZ > 0.0f) {
-        vecPos.z = fGroundZ + 1.5f;
-    } else {
-        vecPos.z += 1.5f; // Fallback nếu không tìm thấy
-    }
+	vecPos.z = CGame::FindGroundZForCoord(vecPos.x, vecPos.y, vecPos.z);
+	vecPos.z += 1.5f;
 
 	CLocalPlayer::GetPlayerPed()->m_pPed->Teleport(vecPos, false);
-    CCamera::SetBehindPlayer();
 }
 
 void ScrSetPlayerInterior(RPCParameters *rpcParams)
@@ -511,14 +482,14 @@ void ScrPlayerSpectatePlayer(RPCParameters *rpcParams)
 	int iBitLength = rpcParams->numberOfBitsOfData;
 
 	RakNet::BitStream bsData((unsigned char*)Data,(iBitLength/8)+1,false);
-
+	
 	PLAYERID playerId;
     uint8_t byteMode;
-
+	
 	bsData.Read(playerId);
 	bsData.Read(byteMode);
 
-	switch (byteMode)
+	switch (byteMode) 
 	{
 		case SPECTATE_TYPE_FIXED:
 			byteMode = 15;
@@ -549,7 +520,7 @@ void ScrPlayerSpectateVehicle(RPCParameters *rpcParams)
 	bsData.Read(VehicleID);
 	bsData.Read(byteMode);
 
-	switch (byteMode)
+	switch (byteMode) 
 	{
 		case SPECTATE_TYPE_FIXED:
 			byteMode = 15;
@@ -905,77 +876,50 @@ void ScrStopFlashGangZone(RPCParameters *rpcParams)
 	CGangZonePool::StopFlash(wZoneID);
 }
 
-#include <unordered_set>
-static std::unordered_set<std::string> g_failedTextures;
-static constexpr std::array texDbs = {"txd", "gta3", "gta_int", "samp"};
-
-RwTexture* ScriptLoadTexture(const char* texname)
-{
-    if (!texname)
-        return nullptr;
-
-    if (g_failedTextures.contains(texname))
-        return nullptr;
-
-    for (const auto& dbName : texDbs)
-    {
-        auto texture = CUtil::LoadTextureFromDB(dbName, texname);
-        if (texture != nullptr)
-        {
-            DLOG("%s loaded from %s", texname, dbName);
-            return texture;
-        }
-        else continue;
-    }
-
-    g_failedTextures.insert(texname);
-    DLOG("-> Texture %s not found!", texname);
-    return nullptr;
-}
-
 int iTotalObjects = 0;
+
 void ScrCreateObject(RPCParameters* rpcParams)
 {
     LOGRPC("ScrCreateObject");
-    unsigned char* Data = reinterpret_cast<unsigned char*>(rpcParams->input);
-    int iBitLength = rpcParams->numberOfBitsOfData;
+	unsigned char* Data = reinterpret_cast<unsigned char*>(rpcParams->input);
+	int iBitLength = rpcParams->numberOfBitsOfData;
 
-    uint16_t wObjectID;
-    uint32 ModelID;
-    float fDrawDistance;
-    CVector vecPos, vecRot;
+	uint16_t wObjectID;
+	uint32 ModelID;
+	float fDrawDistance;
+	CVector vecPos, vecRot;
 
-    uint8_t bNoCameraCol;
-    int16_t attachedVehicleID;
-    int16_t attachedObjectID;
-    CVector vecAttachedOffset;
-    CVector vecAttachedRotation;
-    uint8_t bSyncRot;
-    uint8_t iMaterialCount;
+	uint8_t bNoCameraCol;
+	int16_t attachedVehicleID;
+	int16_t attachedObjectID;
+	CVector vecAttachedOffset;
+	CVector vecAttachedRotation;
+	uint8_t bSyncRot;
+	uint8_t iMaterialCount;
 
-    RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
-    bsData.Read(wObjectID);
-    bsData.Read(ModelID);
-    bsData.Read(vecPos.x);
-    bsData.Read(vecPos.y);
-    bsData.Read(vecPos.z);
+	RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
+	bsData.Read(wObjectID);
+	bsData.Read(ModelID);
+	bsData.Read(vecPos.x);
+	bsData.Read(vecPos.y);
+	bsData.Read(vecPos.z);
 
-    bsData.Read(vecRot.x);
-    bsData.Read(vecRot.y);
-    bsData.Read(vecRot.z);
+	bsData.Read(vecRot.x);
+	bsData.Read(vecRot.y);
+	bsData.Read(vecRot.z);
 
-    bsData.Read(fDrawDistance);
+	bsData.Read(fDrawDistance);
 
-    bsData.Read(bNoCameraCol);
-    bsData.Read(attachedVehicleID);
-    bsData.Read(attachedObjectID);
-    if (attachedObjectID != -1 || attachedVehicleID != -1)
-    {
-        bsData.Read(vecAttachedOffset);
-        bsData.Read(vecAttachedRotation);
-        bsData.Read(bSyncRot);
-    }
-    bsData.Read(iMaterialCount);
+	bsData.Read(bNoCameraCol);
+	bsData.Read(attachedVehicleID);
+	bsData.Read(attachedObjectID);
+	if (attachedObjectID != -1 || attachedVehicleID != -1)
+	{
+		bsData.Read(vecAttachedOffset);
+		bsData.Read(vecAttachedRotation);
+		bsData.Read(bSyncRot);
+	}
+	bsData.Read(iMaterialCount);
 
     if (!CModelInfo::GetModelInfo(ModelID)) {
         Log("Error ScrCreateObject. No model %d", ModelID);
@@ -996,55 +940,55 @@ void ScrCreateObject(RPCParameters* rpcParams)
     iTotalObjects++;
     //Log("ID: %d, model: %d. iTotalObjects = %d", wObjectID, ModelID, iTotalObjects);
 
-    if (attachedVehicleID != -1)
-    {
-        pObject->AttachToVehicle(attachedVehicleID, &vecAttachedOffset, &vecAttachedRotation);
-    }
-    if (iMaterialCount > 0)
-    {
-        for (int i = 0; i < iMaterialCount; i++)
-        {
-            uint16_t modelId;
-            uint8_t libLength, texLength;
-            uint8_t id;
-            bsData.Read(id);
-            if (id == 2) continue;
-            uint8_t slot;
-            bsData.Read(slot);
-            bsData.Read(modelId);
+	if (attachedVehicleID != -1)
+	{
+		pObject->AttachToVehicle(attachedVehicleID, &vecAttachedOffset, &vecAttachedRotation);
+	}
+	if (iMaterialCount > 0)
+	{
+		for (int i = 0; i < iMaterialCount; i++)
+		{
+			uint16_t modelId;
+			uint8_t libLength, texLength;
+			uint8_t id;
+			bsData.Read(id);
+			if (id == 2) continue;
+			uint8_t slot;
+			bsData.Read(slot);
+			bsData.Read(modelId);
 
-            bsData.Read(libLength);
-            char* str = new char[libLength + 1];
-            bsData.Read(str, libLength);
-            str[libLength] = 0;
+			bsData.Read(libLength);
+			char* str = new char[libLength + 1];
+			bsData.Read(str, libLength);
+			str[libLength] = 0;
 
-            bsData.Read(texLength);
-            char* tex = new char[texLength + 1];
-            bsData.Read(tex, texLength);
-            tex[texLength] = 0;
+			bsData.Read(texLength);
+			char* tex = new char[texLength + 1];
+			bsData.Read(tex, texLength);
+			tex[texLength] = 0;
 
-            uint32_t col;
-            bsData.Read(col);
+			uint32_t col;
+			bsData.Read(col);
 
-            union color
-            {
-                uint32_t dwColor;
-                uint8_t cols[4];
-            };
+			union color
+			{
+				uint32_t dwColor;
+				uint8_t cols[4];
+			};
 
-            color rightColor;
-            rightColor.dwColor = col;
-            uint8_t temp = rightColor.cols[0];
-            rightColor.cols[0] = rightColor.cols[2];
-            rightColor.cols[2] = temp;
-            col = rightColor.dwColor;
+			color rightColor;
+			rightColor.dwColor = col;
+			uint8_t temp = rightColor.cols[0];
+			rightColor.cols[0] = rightColor.cols[2];
+			rightColor.cols[2] = temp;
+			col = rightColor.dwColor;
 
-            if (modelId < 0 || modelId > 20000)
-            {
-                modelId = 18631;
-            }
-        }
-    }
+			if (modelId < 0 || modelId > 20000)
+			{
+				modelId = 18631;
+			}
+		}
+	}
 
 }
 
@@ -1161,7 +1105,7 @@ void ScrSetPlayerWantedLevel(RPCParameters *rpcParams)
 	int iBitLength = rpcParams->numberOfBitsOfData;
 
 	RakNet::BitStream bsData((unsigned char*)Data,(iBitLength/8)+1,false);
-
+	
 	if(!CGame::GetGameInit()) return;
 
 	uint8_t byteLevel;
@@ -1322,7 +1266,7 @@ void ScrResetPlayerWeapons(RPCParameters* rpcParams)
 void ScrShowTextDraw(RPCParameters* rpcParams)
 {
     LOGRPC("ScrShowTextDraw");
-    /*unsigned char* Data = reinterpret_cast<unsigned char*>(rpcParams->input);
+    unsigned char* Data = reinterpret_cast<unsigned char*>(rpcParams->input);
     int iBitLength = rpcParams->numberOfBitsOfData;
     RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
 
@@ -1336,7 +1280,7 @@ void ScrShowTextDraw(RPCParameters* rpcParams)
     bsData.Read(wTextSize);
     bsData.Read(cText, wTextSize);
     cText[wTextSize] = 0;
-    CTextDrawPool::New(wTextID, &TextDrawTransmit, cText);*/
+    CTextDrawPool::New(wTextID, &TextDrawTransmit, cText);
 }
 
 void ScrHideTextDraw(RPCParameters* rpcParams)
@@ -1537,116 +1481,49 @@ void ScrSetPlayerAttachedObject(RPCParameters* rpcParams)
 void ScrSetPlayerObjectMaterial(RPCParameters* rpcParams)
 {
     LOGRPC("ScrSetPlayerObjectMaterial");
-    unsigned char* Data = reinterpret_cast<unsigned char*>(rpcParams->input);
-    int iBitLength = rpcParams->numberOfBitsOfData;
+	unsigned char* Data = reinterpret_cast<unsigned char*>(rpcParams->input);
+	int iBitLength = rpcParams->numberOfBitsOfData;
 
-    uint16_t wObjectID;
-    int16_t modelId;
-    uint8_t materialType, matId, libLength, texLength;
-    RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
-    bsData.Read(wObjectID);
-    bsData.Read(materialType);
-    bsData.Read(matId);
+	uint16_t wObjectID;
+	int16_t modelId;
+	uint8_t materialType, matId, libLength, texLength;
+	RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
+	bsData.Read(wObjectID);
+	bsData.Read(materialType);
+	bsData.Read(matId);
+	if (materialType == 2) return;
+	bsData.Read(modelId);
+	bsData.Read(libLength);
+	char* str = new char[libLength + 1];
+	bsData.Read(str, libLength);
+	str[libLength] = 0;
+	bsData.Read(texLength);
+	char* tex = new char[texLength + 1];
+	bsData.Read(tex, texLength);
+	uint32_t col;
+	bsData.Read(col);
+	tex[texLength] = 0;
+	CObjectSamp* pObj = CObjectPool::GetAt(wObjectID);
+	if (!pObj) return;
 
-    if (materialType == 2) {
-        uint8_t byteMaterialSize;
-        uint8_t byteFontNameLength;
-        char szFontName[32];
-        uint8_t byteFontSize;
-        uint8_t byteFontBold;
-        uint32_t dwFontColor;
-        uint32_t dwBackgroundColor;
-        uint8_t byteAlign;
-        char szText[2048];
+	union color
+	{
+		uint32_t dwColor;
+		uint8_t cols[4];
+	};
 
-        bsData.Read(byteMaterialSize);
-        bsData.Read(byteFontNameLength);
-        bsData.Read(szFontName, byteFontNameLength);
-        szFontName[byteFontNameLength] = '\0';
-        bsData.Read(byteFontSize);
-        bsData.Read(byteFontBold);
-        bsData.Read(dwFontColor);
-        bsData.Read(dwBackgroundColor);
-        bsData.Read(byteAlign);
-        stringCompressor->DecodeString(szText, 2048, &bsData);
+	color rightColor;
+	rightColor.dwColor = col;
+	uint8_t temp = rightColor.cols[0];
+	rightColor.cols[0] = rightColor.cols[2];
+	rightColor.cols[2] = temp;
+	col = rightColor.dwColor;
 
-        if (strlen(szFontName) <= 32) {
-            CObjectSamp* pObject = CObjectPool::GetAt(wObjectID);
-            if (pObject) {
-                pObject->SetMaterialText(matId, byteMaterialSize, szFontName, byteFontSize, byteFontBold, dwFontColor, dwBackgroundColor, byteAlign, szText);
-            }
-        }
-        return;
-    }
 
-    bsData.Read(modelId);
-    bsData.Read(libLength);
-    char str[libLength + 1];
-    bsData.Read(str, libLength);
-    str[libLength] = 0;
-    bsData.Read(texLength);
-    char tex[texLength + 1];
-    bsData.Read(tex, texLength);
-    uint32_t col;
-    bsData.Read(col);
-    tex[texLength] = 0;
-
-    CObjectSamp* pObj = CObjectPool::GetAt(wObjectID);
-    if (!pObj) return;
-
-    union color
-    {
-        uint32_t dwColor;
-        uint8_t cols[4];
-    };
-
-    color rightColor{};
-    rightColor.dwColor = col;
-    uint8_t temp = rightColor.cols[0];
-    rightColor.cols[0] = rightColor.cols[2];
-    rightColor.cols[2] = temp;
-    col = rightColor.dwColor;
-
-    if (modelId == -1) {
-        pObj->m_bMaterials = true;
-        pObj->m_pMaterials[matId].m_bCreated = true;
-        pObj->m_pMaterials[matId].wModelID = 0xFFFF;
-        pObj->m_pMaterials[matId].pTex = nullptr;
-        pObj->m_pMaterials[matId].dwColor = col;
-        return;
-    }
-
-    if (modelId < 0 || modelId > 20000)
-        modelId = INVALID_MODEL_ID;
-
-    if (!CStreaming::TryLoadModel(modelId))
-        return;
-
-    if (matId > MAX_MATERIALS)
-        return;
-
-    if (pObj->m_pMaterials[matId].m_bCreated && pObj->m_pMaterials[matId].pTex) {
-        pObj->m_pMaterials[matId].m_bCreated = 0;
-        RwTextureDestroy(pObj->m_pMaterials[matId].pTex);
-        pObj->m_pMaterials[matId].pTex = nullptr;
-    }
-    pObj->m_bMaterials = true;
-    pObj->m_pMaterials[matId].m_bCreated = true;
-    pObj->m_pMaterials[matId].wModelID = modelId;
-    pObj->m_pMaterials[matId].pTex = ScriptLoadTexture(tex);
-    pObj->m_pMaterials[matId].dwColor = col;
-
-    if (!strncmp(tex, "materialtext1", sizeof(("materialtext1"))))
-        strcpy(tex, "MaterialText1");
-
-    if (!strncmp(tex, "sampblack", sizeof(("sampblack"))))
-        strcpy(tex, "SAMPBlack");
-
-    if (!strncmp(tex, "carpet19-128x128", sizeof(("carpet19-128x128"))))
-        strcpy(tex, "Carpet19-128x128");
-
-    if (!pObj->m_pMaterials[matId].pTex && strncmp(tex, "none", sizeof(("none"))) && strncmp(tex, "wall8", sizeof(("wall8"))))
-        pObj->m_pMaterials[matId].pTex = ScriptLoadTexture(tex);
+	if (modelId < 0 || modelId > 20000)
+	{
+		modelId = 18631;
+	}
 }
 
 void ScrSetVehicleZAngle(RPCParameters* rpcParams)
@@ -1712,7 +1589,7 @@ void ScrRemoveComponent(RPCParameters* rpcParams)
     LOGRPC("ScrRemoveComponent");
 	unsigned char* Data = reinterpret_cast<unsigned char*>(rpcParams->input);
 	int iBitLength = rpcParams->numberOfBitsOfData;
-
+	
 	VEHICLEID vehicleId;
 	uint16_t component;
 	RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
@@ -1784,7 +1661,7 @@ void ScrSetObjectRotation(RPCParameters* rpcParams)
 
 	uint16_t objectId;
 	CVector vecRot;
-
+	
 	bsData.Read(objectId);
 	bsData.Read((char*)&vecRot, sizeof(CVector));
 
@@ -1792,24 +1669,6 @@ void ScrSetObjectRotation(RPCParameters* rpcParams)
 	{
 		CObjectPool::GetAt(objectId)->InstantRotate(vecRot.x, vecRot.y, vecRot.z);
 	}
-}
-void ScrSetSpawnInfo(RPCParameters *rpcParams)
-{
-    unsigned char * Data = reinterpret_cast<unsigned char *>(rpcParams->input);
-    int iBitLength = rpcParams->numberOfBitsOfData;
-
-    PLAYER_SPAWN_INFO spawnInfo;
-    RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
-    bsData.Read((char*)&spawnInfo, sizeof(PLAYER_SPAWN_INFO));
-
-    CLocalPlayer::SetSpawnInfo(&spawnInfo);
-
-    return;
-}
-void ScrForceSpawnSelection(RPCParameters *rpcParams)
-{
-	LOGRPC("RPC: ScrForceSpawnSelection");
-	CLocalPlayer::ProcessClassSelection();
 }
 
 void ScrSetPlayerTeam(RPCParameters *rpcParams)
@@ -1827,11 +1686,11 @@ void ScrSetPlayerTeam(RPCParameters *rpcParams)
 	bsData.Read(teamId);
 
 	if(playerId == CPlayerPool::GetLocalPlayerID())
-		CLocalPlayer::SetTeam(teamId);
+		CLocalPlayer::GetPlayerPed()->SetMoveAnim(teamId);
 	else
 	{
 		if(CPlayerPool::GetSpawnedPlayer(playerId))
-			CPlayerPool::GetAt(playerId)->SetTeam(teamId);
+			CPlayerPool::GetAt(playerId)->GetPlayerPed()->SetMoveAnim(teamId);
 	}
 }
 
@@ -1851,8 +1710,6 @@ void ScrDisableRemoteVehicleCollision(RPCParameters *rpcParams)
 void RegisterScriptRPCs(RakClientInterface* pRakClient)
 {
     LOGRPC("Registering ScriptRPC's..");
-    pRakClient->RegisterAsRemoteProcedureCall(&RPC_ScrSetSpawnInfo, ScrSetSpawnInfo);
-	pRakClient->RegisterAsRemoteProcedureCall(&RPC_ScrForceSpawnSelection, ScrForceSpawnSelection);
 
 	pRakClient->RegisterAsRemoteProcedureCall(&RPC_ScrSetPlayerTeam, ScrSetPlayerTeam);
 	pRakClient->RegisterAsRemoteProcedureCall(&RPC_ScrDisplayGameText, ScrDisplayGameText);
@@ -1991,7 +1848,7 @@ void UnRegisterScriptRPCs(RakClientInterface* pRakClient)
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrSetVehicleVelocity);
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrNumberPlate);
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrInterpolateCamera);
-
+	
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrAddGangZone);
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrRemoveGangZone);
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrFlashGangZone);
@@ -2012,7 +1869,6 @@ void UnRegisterScriptRPCs(RakClientInterface* pRakClient)
     pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrShowTextDraw);
     pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrHideTextDraw);
     pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ClickTextDraw);
-    pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrSetSpawnInfo);
 
     pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ScrDisableRemoteVehicleCollision);
 }
