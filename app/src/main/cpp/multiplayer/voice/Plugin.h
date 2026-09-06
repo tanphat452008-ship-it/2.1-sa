@@ -19,12 +19,13 @@ class CVoicePlugin {
 public:
     static bool OnPluginLoad() noexcept;
     static bool OnSampLoad() noexcept;
+    
+    // Đã di chuyển MainLoop() vào public để playerpool.cpp có quyền truy cập
+    static void MainLoop();
 
 private:
     static void OnInitGame() noexcept;
     static void OnExitGame() noexcept;
-
-    static void MainLoop();
 
     static void ConnectHandler(const std::string& serverIp, uint16_t serverPort);
     static void PluginConnectHandler(SV::ConnectPacket& connectStruct);
