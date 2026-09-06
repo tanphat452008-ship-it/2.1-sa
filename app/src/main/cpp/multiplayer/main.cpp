@@ -141,7 +141,7 @@ void InitInGame()
 	if (!bNetworkInited)
 	{
         pNetGame = new CNetGame(
-                "sv.sa-mp.vn",
+                "gta-ae.pro",
                 7777,
                 CSettings::m_Settings.szNickName,
                 CSettings::m_Settings.szPassword
