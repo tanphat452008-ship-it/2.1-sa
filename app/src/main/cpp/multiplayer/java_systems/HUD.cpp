@@ -304,7 +304,6 @@ void CHUD::SetChatInput(const char ch[])
 {
     if (!ch) return;
 
-    // Chống Buffer Overflow và Thread-Race bằng bộ nhớ động cục bộ
     size_t len = strlen(ch) * 3 + 1;
     std::vector<char> msg_utf(len);
     cp1251_to_utf8(msg_utf.data(), ch);
@@ -329,7 +328,6 @@ void CHUD::AddChatMessage(const char msg[])
 {
     if(!thiz || !msg) return;
 
-    // Chống Buffer Overflow và Thread-Race bằng bộ nhớ động cục bộ
     size_t len = strlen(msg) * 3 + 1;
     std::vector<char> msg_utf(len);
     cp1251_to_utf8(msg_utf.data(), msg);
@@ -476,8 +474,8 @@ JNIEXPORT void JNICALL
 Java_com_russia_game_gui_hud_Chat_SendChatMessage(JNIEnv *env, jobject thiz, jbyteArray str) {
     if (!str) return;
 
-    // AN TOÀN CHUẨN: Chặn gửi tin nhắn nếu game chưa tạo hoặc người chơi chưa Spawn (đang ở màn hình Login/Đăng ký)
-    if (!pNetGame || !pNetGame->GetPlayerPool() || !pNetGame->GetPlayerPool()->GetLocalPlayer()) return;
+    // Chặn gửi chat nếu pNetGame chưa khởi tạo hoặc nhân vật chưa spawn (tránh crash lúc đăng nhập)
+    if (!pNetGame || !CLocalPlayer::GetPlayerPed()) return;
 
     jbyte* pMsg = env->GetByteArrayElements(str, nullptr);
     if (!pMsg) return;
