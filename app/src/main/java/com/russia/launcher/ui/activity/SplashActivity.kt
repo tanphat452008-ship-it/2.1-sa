@@ -1,8 +1,3 @@
-Lỗi ứng dụng bị treo ở màn hình "Получение данных..." (như trong hình 1000186000.jpg) xuất phát từ 3 lỗ hổng logic trong quá trình xử lý luồng (flow) của mã nguồn:
- * Lỗi kẹt ở hộp thoại xin quyền (Permissions): Trong hàm onRequestPermissionsResult, biến permissionsGranded chỉ được chuyển thành true và gọi startIfReady() nếu người dùng "Cho phép". Nếu người dùng "Từ chối", hàm không làm gì cả, khiến ứng dụng kẹt vĩnh viễn ở Splash Screen.
- * Không ngắt luồng khi mất mạng: Ở hàm onCreate, khi phát hiện !isOnline, ứng dụng hiện thông báo lỗi nhưng lại thiếu lệnh return. Mã nguồn vẫn tiếp tục chạy xuống dưới để gọi API ServersList.load(), gây kẹt luồng mạng.
- * Thiếu cơ chế phòng hờ (Timeout) cho API: Callback của ServersList.load chỉ định nghĩa hàm monitoringDataLoadedSuccess(). Nếu máy chủ lỗi, không phản hồi hoặc phản hồi sai định dạng, sự kiện "Success" sẽ không bao giờ được kích hoạt. Biến monitoringDataLoaded mãi mãi bằng false, chặn hàm startIfReady().
-Dưới đây là toàn bộ tệp SplashActivity.kt đã được khắc phục. Các lỗi trên được giải quyết bằng cách thêm lệnh return khi mất mạng, thêm bộ đếm giờ Failsafe dự phòng API bị nghẽn, và đảm bảo ứng dụng luôn đi tiếp dù quyền bị từ chối.
 package com.russia.launcher.ui.activity
 
 import android.Manifest
