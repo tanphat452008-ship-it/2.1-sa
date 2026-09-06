@@ -247,29 +247,35 @@ int CStreaming::AddImageToList(char const* pFileName, bool bNotPlayerImg) {
 }
 
 void CStreaming::InitImageList() {
-    // Tăng bộ nhớ Streaming lên 1024MB để tránh load chậm texture
-    ms_memoryAvailable = 1024 * 1024 * 1024;
-
     for (auto & ms_file : ms_files) {
         ms_file.m_szName[0] = 0;
         ms_file.m_StreamHandle = 0;
     }
 
-#if VER_SAMP
     CStreaming::AddImageToList("TEXDB\\GTA3.IMG", true);
     CStreaming::AddImageToList("TEXDB\\GTA_INT.IMG", true);
-   // CStreaming::AddImageToList("TEXDB\\SKINS.IMG", true);
- //   CStreaming::AddImageToList("TEXDB\\CARS.IMG", true);
     CStreaming::AddImageToList("TEXDB\\SAMP.IMG", true);
     CStreaming::AddImageToList("TEXDB\\SAMPCOL.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\SKINS.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\CARS.IMG", true);
+    /*CStreaming::AddImageToList("TEXDB\\CARS.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\SKINS.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\OTHER.IMG", true);*/
+
+/*#if VER_SAMP
+    CStreaming::AddImageToList("TEXDB\\GTA3.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\GTA_INT.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\CARS.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\SKINS.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\OTHER.IMG", true);
 #else
     CStreaming::AddImageToList("TEXDB\\GTA3.IMG", true);
     CStreaming::AddImageToList("TEXDB\\GTA_INT.IMG", true);
-   // CStreaming::AddImageToList("TEXDB\\SKINS.IMG", true);
-   //CStreaming::AddImageToList("TEXDB\\CARS.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\SKINS.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\CARS.IMG", true);
     CStreaming::AddImageToList("TEXDB\\SAMP.IMG", true);
     CStreaming::AddImageToList("TEXDB\\SAMPCOL.IMG", true);
-#endif
+#endif*/
 }
 
 // Request a given model to be loaded.
@@ -382,6 +388,8 @@ void CStreaming::Update() {
     previousTime = currentTimeInSeconds;
     const double clampedDeltaTime = std::min(0.1, deltaTime);
     TextureDatabaseRuntime::UpdateStreaming(clampedDeltaTime, true);
+
+    
 
     const auto& camPos = CCamera::Get().GetPosition();
     const float fCamDistanceToGroundZ = camPos.z - CCamera::Get().CalculateGroundHeight(eGroundHeightType::ENTITY_BB_BOTTOM);
@@ -905,6 +913,7 @@ void CStreaming::DeleteRwObjectsBehindCamera(size_t memoryToCleanInBytes) {
     const auto START_OFFSET_XY = 10;
     const auto END_OFFSET_XY = 2;
 
+    
     const CVector& cameraPos = CCamera::Get().GetPosition();
     const int32 pointSecX = CWorld::GetSectorX(cameraPos.x),
             pointSecY = CWorld::GetSectorY(cameraPos.y);
@@ -1175,6 +1184,7 @@ bool CStreaming::RemoveLeastUsedModel(int32 streamingFlags) {
         }
     }
 
+    
     if (CCamera::Get().GetPosition().z - CCamera::Get().CalculateGroundHeight(eGroundHeightType::ENTITY_BB_BOTTOM) > 50.0f
         && (
                 ms_numPedsLoaded > 4
