@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/chat_line_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/_1sdp"
+    android:paddingEnd="@dimen/_1sdp">
+
+    <!-- Время в маленькой плашке слева -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/timeLayout"
+        android:layout_width="@dimen/_30sdp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/chat_style1_time_bg"
+        app:layout_constraintTop_toTopOf="@+id/text"
+        app:layout_constraintBottom_toBottomOf="@+id/text"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="01:28:24"
+            android:textSize="@dimen/_6sdp"
+            android:textColor="@color/white"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:shadowColor="@color/black"
+            android:shadowRadius="1"
+            android:fontFamily="@font/visby_round_cf_extra_bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Тонкая вертикальная полоска после времени -->
+    <View
+        android:id="@+id/hr"
+        android:layout_width="@dimen/_2sdp"
+        android:layout_height="0dp"
+        android:layout_marginStart="@dimen/_1sdp"
+        android:background="@color/yellow"
+        app:layout_constraintStart_toEndOf="@+id/timeLayout"
+        app:layout_constraintTop_toTopOf="@+id/text"
+        app:layout_constraintBottom_toBottomOf="@+id/text" />
+
+    <!-- Текст сообщения -->
+    <TextView
+        android:id="@+id/text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/_1sdp"
+        android:layout_marginStart="@dimen/_1sdp"
+        android:layout_marginEnd="@dimen/_1sdp"
+        android:background="@drawable/chat_line_bg2"
+        android:paddingStart="@dimen/_3sdp"
+        android:paddingEnd="@dimen/_1sdp"
+        android:paddingBottom="@dimen/_1sdp"
+        android:text="@string/egor_plakapenka_194_kdkd"
+        android:textSize="@dimen/_8sdp"
+        android:textColor="@color/white"
+        android:includeFontPadding="false"
+        android:shadowColor="@color/black"
+        android:shadowRadius="2"
+        android:fontFamily="@font/sfprodisplaysemibold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/hr"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

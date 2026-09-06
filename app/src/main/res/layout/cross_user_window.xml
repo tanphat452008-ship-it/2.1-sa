@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="#bf000000"
+    android:clickable="true"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/startGl"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.025" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/endGl"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.975" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/topGl"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.04" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/bottomGl"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.98" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/hrTopGl"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.16" />
+
+    <ImageView
+        android:id="@+id/backButton"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:src="@drawable/launcher_select_server_back_button"
+        android:adjustViewBounds="true"
+        app:layout_constraintBottom_toTopOf="@+id/hrTopGl"
+        app:layout_constraintHeight_percent="0.1"
+        app:layout_constraintStart_toEndOf="@+id/startGl"
+        app:layout_constraintTop_toBottomOf="@+id/topGl" />
+
+    <TextView
+        android:id="@+id/accountTitle"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:text="Аккаунт"
+        android:textColor="#b3ffffff"
+        android:gravity="start|bottom"
+        android:includeFontPadding="false"
+        android:textAllCaps="true"
+        android:fontFamily="@font/bebas_neue_regular"
+        android:layout_marginStart="@dimen/_10sdp"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="@dimen/_8sdp"
+        android:autoSizeMaxTextSize="@dimen/_40sdp"
+        app:layout_constraintBottom_toBottomOf="@+id/backButton"
+        app:layout_constraintHeight_percent="0.09"
+        app:layout_constraintStart_toEndOf="@+id/backButton"
+        app:layout_constraintWidth_percent="0.2" />
+
+    <ImageView
+        android:id="@+id/hrLine"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@drawable/launcher_select_server_hr"
+        app:layout_constraintEnd_toStartOf="@+id/endGl"
+        app:layout_constraintHeight_percent="0.005"
+        app:layout_constraintStart_toEndOf="@+id/startGl"
+        app:layout_constraintTop_toBottomOf="@+id/hrTopGl" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/linkedContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/_10sdp"
+        android:layout_marginBottom="@dimen/_15sdp"
+        android:background="@drawable/launcher_user_window_bg"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/hrLine"
+        app:layout_constraintBottom_toTopOf="@id/bottomGl"
+        app:layout_constraintWidth_percent="0.35"
+        app:layout_constraintHeight_percent="0.7">
+
+        <TextView
+            android:id="@+id/profileTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Профиль игрока"
+            android:textColor="#b3ffffff"
+            android:fontFamily="@font/muller_medium"
+            android:textSize="@dimen/_11sdp"
+            android:gravity="center"
+            android:paddingStart="@dimen/_10sdp"
+            android:paddingTop="@dimen/_8sdp"
+            android:paddingEnd="@dimen/_10sdp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/nicknameLayout"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/_32sdp"
+            android:layout_marginTop="@dimen/_8sdp"
+            android:background="@drawable/launcher_user_window_item_with_corners_bg"
+            android:clickable="true"
+            android:foreground="?android:attr/selectableItemBackgroundBorderless"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_percent="0.18"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/profileTitle"
+            app:layout_constraintWidth_percent="0.95">
+
+            <ImageView
+                android:id="@+id/nicknameIcon"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginStart="@dimen/_5sdp"
+                android:adjustViewBounds="true"
+                android:src="@drawable/launcher_main_user_icon"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHeight_percent="0.6"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.1" />
+
+            <TextView
+                android:id="@+id/nicknameCaption"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginStart="@dimen/_5sdp"
+                android:fontFamily="@font/muller_medium"
+                android:gravity="center_vertical"
+                android:text="Никнейм"
+                android:textColor="@color/white"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="@dimen/_7sdp"
+                android:autoSizeMaxTextSize="@dimen/_11sdp"
+                app:layout_constraintBottom_toBottomOf="@+id/nicknameIcon"
+                app:layout_constraintHeight_percent="0.5"
+                app:layout_constraintStart_toEndOf="@+id/nicknameIcon"
+                app:layout_constraintTop_toTopOf="@+id/nicknameIcon"
+                app:layout_constraintWidth_percent="0.3" />
+
+            <EditText
+                android:id="@+id/nicknameValue"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginEnd="@dimen/_5sdp"
+                android:fontFamily="@font/muller_medium"
+                android:gravity="center_vertical|end"
+                android:hint="Нажмите, чтобы изменить никнейм"
+                android:textColor="@color/white"
+                android:textColorHint="#80ffffff"
+                android:background="@android:color/transparent"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:inputType="textPersonName"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="@dimen/_5sdp"
+                android:autoSizeMaxTextSize="@dimen/_12sdp"
+                app:layout_constraintBottom_toBottomOf="@+id/nicknameIcon"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.5"
+                app:layout_constraintTop_toTopOf="@+id/nicknameIcon"
+                app:layout_constraintWidth_percent="0.5" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/infoLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/_10sdp"
+            android:background="@drawable/launcher_user_window_item_with_corners_bg"
+            app:layout_constraintTop_toBottomOf="@+id/nicknameLayout"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintWidth_percent="0.95">
+
+            <ImageView
+                android:id="@+id/infoIcon"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginStart="@dimen/_4sdp"
+                android:layout_marginTop="@dimen/_6sdp"
+                android:adjustViewBounds="true"
+                android:src="@drawable/launcher_select_server_info_icon"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.1"
+                app:layout_constraintHeight_percent="0.7" />
+
+            <TextView
+                android:id="@+id/infoTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/_5sdp"
+                android:layout_marginTop="@dimen/_6sdp"
+                android:text="Совет по безопасности"
+                android:textColor="@color/white"
+                android:textSize="@dimen/_9sdp"
+                android:fontFamily="@font/muller_medium"
+                app:layout_constraintStart_toEndOf="@+id/infoIcon"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <TextView
+                android:id="@+id/infoText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/_5sdp"
+                android:layout_marginTop="@dimen/_2sdp"
+                android:layout_marginBottom="@dimen/_6sdp"
+                android:text="Не передавайте ник и данные аккаунта третьим лицам. Администрация не просит пароль в личных сообщениях."
+                android:textColor="#b3ffffff"
+                android:textSize="@dimen/_7sdp"
+                android:fontFamily="@font/muller_medium"
+                app:layout_constraintTop_toBottomOf="@+id/infoTitle"
+                app:layout_constraintStart_toEndOf="@+id/infoIcon"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <TextView
+            android:id="@+id/saveNicknameButton"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/_32sdp"
+            android:layout_marginTop="@dimen/_10sdp"
+            android:layout_marginBottom="@dimen/_7sdp"
+            android:background="@drawable/launcher_user_window_item_bg"
+            android:fontFamily="@font/roboto_bold"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="@string/save_nickname"
+            android:textColor="#493d3d"
+            android:textSize="@dimen/_11sdp"
+            app:layout_constraintTop_toBottomOf="@+id/infoLayout"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="@+id/infoLayout"
+            app:layout_constraintWidth_percent="0.46"
+            app:layout_constraintHeight_percent="0.18" />
+
+        <TextView
+            android:id="@+id/exitAccountButton"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/_32sdp"
+            android:background="@drawable/launcher_user_window_item_bg"
+            android:backgroundTint="#d92323"
+            android:fontFamily="@font/roboto_bold"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="@string/logout"
+            android:textColor="@color/white"
+            android:textSize="@dimen/_11sdp"
+            app:layout_constraintTop_toTopOf="@+id/saveNicknameButton"
+            app:layout_constraintEnd_toEndOf="@+id/infoLayout"
+            app:layout_constraintWidth_percent="0.46"
+            app:layout_constraintHeight_percent="0.18" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

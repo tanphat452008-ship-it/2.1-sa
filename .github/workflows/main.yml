@@ -1,0 +1,110 @@
+name: Build APK Windows (Release Version)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # 1. Checkout source
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up JDK 21
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      # 3. Setup Gradle Cache
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # 4. Set up Android SDK
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0"
+          cmdline-tools-version: 12266719
+          accept-android-sdk-licenses: true
+
+      # 5. Enable long paths for Windows
+      - name: Enable long paths
+        run: |
+          git config --system core.longpaths true
+          reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+        shell: powershell
+
+      # 6. Cache C++ / CMake NDK build outputs
+      - name: Cache C++ Build (.cxx)
+        uses: actions/cache@v4
+        with:
+          path: app/.cxx
+          key: ${{ runner.os }}-cxx-${{ hashFiles('app/src/main/cpp/**') }}
+          restore-keys: |
+            ${{ runner.os }}-cxx-
+
+      # 7. Build Debug APK
+      - name: Build Debug APK
+        shell: cmd
+        run: |
+          call gradlew.bat assembleDebug --build-cache --stacktrace
+
+      # 8. Prepare Release Files (Lấy cả APK và File Symbol Unstripped)
+      - name: Prepare Release Files
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "release-files" | Out-Null
+
+          # 1. Copy file APK
+          Get-ChildItem -Path "app/build/outputs/apk" -Filter "*.apk" -Recurse | Copy-Item -Destination "release-files/" -Force
+
+          # 2. Đóng gói các file unstripped .so trong thư mục intermediates/cxx
+          if (Test-Path "app/build/intermediates/cxx") {
+              Write-Host "Dang nen thu muc cxx (Unstripped Native Symbols)..."
+              Compress-Archive -Path "app/build/intermediates/cxx" -DestinationPath "release-files/native-symbols-unstripped.zip" -Force
+          }
+
+          # 3. Nếu có thư mục native-debug-symbols thì nén thêm
+          if (Test-Path "app/build/outputs/native-debug-symbols") {
+              Write-Host "Dang nen thu muc native-debug-symbols..."
+              Compress-Archive -Path "app/build/outputs/native-debug-symbols" -DestinationPath "release-files/native-debug-symbols.zip" -Force
+          }
+
+          Write-Host ""
+          Write-Host "===== RELEASE FILES ====="
+          Get-ChildItem "release-files"
+
+      # 9. Upload APK & Native Symbols to GitHub Release
+      - name: Upload APK & Symbols to Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          files: |
+            release-files/*.apk
+            release-files/*.zip
+          tag_name: build-${{ github.run_number }}
+          name: Debug Build v${{ github.run_number }}
+          body: |
+            Bản build mới nhất từ nhánh ${{ github.ref_name }}.
+
+            Mã commit:
+            ${{ github.sha }}
+
+            Files kèm theo:
+            - APK Debug
+            - File Unstripped Native Symbols (`native-symbols-unstripped.zip`) dùng để soi dòng crash bằng addr2line.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

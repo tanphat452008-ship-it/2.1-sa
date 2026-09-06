@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mainRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Весь главный экран в отдельном контейнере -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/contentRoot"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:id="@+id/background"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/launcher_main_bg_halloween"
+            android:scaleType="centerCrop"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/startGl"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.03" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/endGl"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.975" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/topGl"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.04" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/bottomGl"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="horizontal"
+            app:layout_constraintGuide_percent="0.94" />
+
+        <ImageView
+            android:id="@+id/settingButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:src="@drawable/launcher_main_setting_icon"
+            android:adjustViewBounds="true"
+            app:layout_constraintEnd_toStartOf="@+id/endGl"
+            app:layout_constraintTop_toTopOf="@+id/topGl"
+            app:layout_constraintWidth_percent="0.05" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/userLayout"
+            android:background="@drawable/launcher_main_select_server_bg"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:foreground="?android:attr/selectableItemBackgroundBorderless"
+            app:layout_constraintHeight_percent="0.08"
+            app:layout_constraintStart_toStartOf="@+id/startGl"
+            app:layout_constraintTop_toTopOf="@+id/topGl"
+            app:layout_constraintWidth_percent="0.18">
+
+            <ImageView
+                android:id="@+id/userIcon"
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:src="@drawable/launcher_main_user_icon"
+                android:adjustViewBounds="true"
+                app:layout_constraintBottom_toBottomOf="@+id/userName"
+                app:layout_constraintEnd_toStartOf="@+id/userName"
+                app:layout_constraintHeight_percent="0.5"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintHorizontal_chainStyle="packed"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/userName" />
+
+            <TextView
+                android:id="@+id/userName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cross"
+                android:textColor="#e6ffffff"
+                android:fontFamily="@font/bebas_neue_regular"
+                android:layout_marginStart="@dimen/_5sdp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/userIcon"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/playButt"
+            android:background="@drawable/launcher_main_play_button_bg"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:adjustViewBounds="true"
+            app:layout_constraintBottom_toTopOf="@+id/bottomGl"
+            app:layout_constraintDimensionRatio="14:4"
+            app:layout_constraintEnd_toStartOf="@+id/endGl"
+            app:layout_constraintWidth_percent="0.25">
+
+            <ImageView
+                android:id="@+id/playerButtonIcon"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:src="@drawable/launcher_main_play_button_icon"
+                android:adjustViewBounds="true"
+                app:layout_constraintBottom_toBottomOf="@+id/playButtonText"
+                app:layout_constraintEnd_toStartOf="@+id/playButtonText"
+                app:layout_constraintHeight_percent="0.6"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintHorizontal_chainStyle="packed"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/playButtonText"
+                app:layout_constraintWidth_percent="0.17" />
+
+            <TextView
+                android:id="@+id/playButtonText"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:text="@string/play"
+                android:textColor="#555555"
+                android:gravity="center_vertical"
+                android:includeFontPadding="false"
+                android:shadowColor="@color/black"
+                android:shadowDx="1"
+                android:shadowRadius="2"
+                android:textAllCaps="true"
+                android:fontFamily="@font/roboto_bold"
+                android:paddingEnd="@dimen/_5sdp"
+                android:layout_marginStart="@dimen/_10sdp"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="@dimen/_10sdp"
+                android:autoSizeMaxTextSize="@dimen/_30sdp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.6"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintStart_toEndOf="@+id/playerButtonIcon"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.5" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <TextView
+            android:textSize="@dimen/_11sdp"
+            android:textColor="@color/white"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/select_server_"
+            android:shadowColor="@color/black"
+            android:shadowRadius="10"
+            android:fontFamily="@font/bebas_neue_regular"
+            app:layout_constraintBottom_toTopOf="@+id/selectedServerLayout"
+            app:layout_constraintStart_toStartOf="@+id/selectedServerLayout" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/selectedServerLayout"
+            android:background="@drawable/launcher_main_select_server_bg"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginBottom="@dimen/_5sdp"
+            app:layout_constraintBottom_toTopOf="@+id/playButt"
+            app:layout_constraintEnd_toStartOf="@+id/endGl"
+            app:layout_constraintHeight_percent="0.08"
+            app:layout_constraintStart_toStartOf="@+id/playButt"
+            app:layout_constraintWidth_percent="0.18">
+
+            <TextView
+                android:id="@+id/serverName"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:text="Москва"
+                android:textColor="#e6ffffff"
+                android:gravity="center"
+                android:fontFamily="@font/bebas_neue_regular"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="@dimen/_5sdp"
+                android:autoSizeMaxTextSize="@dimen/_15sdp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.6"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.8" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <ImageView
+            android:id="@+id/socialShadow"
+            android:background="@drawable/launcher_main_social_shadow"
+            android:visibility="visible"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintHeight_percent="0.3"
+            app:layout_constraintStart_toStartOf="@+id/startGl"
+            app:layout_constraintWidth_percent="0.3" />
+
+        <ImageView
+            android:id="@+id/tgButton"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:foreground="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/launcher_main_tg_button"
+            android:adjustViewBounds="true"
+            app:layout_constraintBottom_toTopOf="@+id/bottomGl"
+            app:layout_constraintHeight_percent="0.1"
+            app:layout_constraintStart_toEndOf="@+id/startGl" />
+
+        <ImageView
+            android:id="@+id/ytButton"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:foreground="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/launcher_main_yt_button"
+            android:adjustViewBounds="true"
+            android:layout_marginStart="@dimen/_10sdp"
+            app:layout_constraintBottom_toBottomOf="@+id/tgButton"
+            app:layout_constraintStart_toEndOf="@+id/tgButton"
+            app:layout_constraintTop_toTopOf="@+id/tgButton" />
+
+        <ImageView
+            android:id="@+id/vkButton"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:foreground="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/launcher_main_vk_button"
+            android:adjustViewBounds="true"
+            android:layout_marginStart="@dimen/_10sdp"
+            app:layout_constraintBottom_toBottomOf="@+id/tgButton"
+            app:layout_constraintStart_toEndOf="@+id/ytButton"
+            app:layout_constraintTop_toTopOf="@+id/tgButton" />
+
+        <ImageView
+            android:id="@+id/dsButton"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:foreground="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/launcher_main_ds_button"
+            android:adjustViewBounds="true"
+            android:layout_marginStart="@dimen/_10sdp"
+            app:layout_constraintBottom_toBottomOf="@+id/tgButton"
+            app:layout_constraintStart_toEndOf="@+id/vkButton"
+            app:layout_constraintTop_toTopOf="@+id/tgButton" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Оверлей аккаунта отдельным слоем -->
+    <include
+        android:id="@+id/accountOverlayRoot"
+        layout="@layout/cross_user_window"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Оверлей загрузки поверх ВСЕГО (и contentRoot, и accountOverlay) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/loadingOverlayRoot"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#80000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/loadingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Запуск игры..."
+            android:textColor="@android:color/white"
+            android:textSize="35sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
