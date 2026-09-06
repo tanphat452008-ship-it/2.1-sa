@@ -4,6 +4,10 @@
 #include "main.h"
 #include "NetPool.h"
 
+// Thêm khai báo trước (forward declaration) để trình biên dịch nhận diện được class
+class CRemotePlayer;
+class CEntity;
+
 class CPlayerPool : public CNetPool<CRemotePlayer*>
 {
 public:
@@ -42,14 +46,16 @@ public:
 	static bool Delete(PLAYERID playerId, uint8_t byteReason);
 
 	static void SetPlayerName(PLAYERID playerId, char* szName) { strcpy(m_szPlayerNames[playerId], szName); }
+	
 	static char* GetPlayerName(PLAYERID playerId) {
 		if(playerId == GetLocalPlayerID()) {
 			return GetLocalPlayerName();
 		}
-		if(GetAt(playerId)) {
+		// Sửa lỗi dependent scope trong template cơ sở khi ở hàm static
+		if(CNetPool<CRemotePlayer*>::GetAt(playerId)) {
 			return m_szPlayerNames[playerId];
 		}
-		return " ";
+		return (char*)" "; 
 	}
 
 	static PLAYERID FindRemotePlayerIDFromGtaPtr(CEntity * pActor);
