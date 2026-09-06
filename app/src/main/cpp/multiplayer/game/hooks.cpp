@@ -97,7 +97,7 @@ stFile* NvFOpen(const char* r0, const char* r1, int r2, int r3)
 #endif
 	st->isFileExist = false;
 
-	Log("%s", path);
+    Log("%s", path);
 	FILE *f  = fopen(path, "rb");
 
 	if(f)
@@ -203,25 +203,6 @@ unsigned int MainMenuScreen__Update_hook(uintptr_t thiz, float a2)
 	unsigned int ret = MainMenuScreen__Update(thiz, a2);
 	MainMenu_OnStartSAMP();
 	return ret;
-}
-
-static char szLastBufferedName[40];
-int (*cHandlingDataMgr__FindExactWord)(uintptr_t thiz, char* line, char* nameTable, int entrySize, int entryCount);
-int cHandlingDataMgr__FindExactWord_hook(uintptr_t thiz, char* line, char* nameTable, int entrySize, int entryCount)
-{
-	//Log("dslkfjsakj = %s", nameTable[0]);
-	strncpy(&szLastBufferedName[0], line, entrySize);
-	return cHandlingDataMgr__FindExactWord(thiz, line, nameTable, entrySize, entryCount);
-}
-#include "cHandlingDataMgr.h"
-
-void cHandlingDataMgr__ConvertDataToGameUnits(uintptr_t *thiz, tHandlingData* handling)
-{
-	auto handlingId = cHandlingDataMgr::GetHandlingId(szLastBufferedName);
-
-	CHandlingDefault::FillDefaultHandling((uint16_t)handlingId, handling);
-
-	CHook::CallFunction<void>(g_libGTASA + (VER_x32 ? 0x00570DC8 + 1 : 0x69343C), thiz, handling);
 }
 
 int lastNvEvent;
@@ -467,8 +448,8 @@ int CTextureDatabaseRuntime__GetEntry_hook(TextureDatabaseRuntime *a1, const cha
 #include "game/Birds.h"
 #include "game/PathFind.h"
 #include "game/FileLoader.h"
-#include "game/RealTimeShadowManager.h"
-#include "Shadows.h"
+#include "game/Shadow/RealTimeShadowManager.h"
+#include "game/Shadow/Shadows.h"
 #include "Widgets/WidgetRadar.h"
 #include "graphics/RQShader.h"
 #include "Pipelines/CustomCar/CustomCarEnvMapPipeline.h"
@@ -483,6 +464,14 @@ int CTextureDatabaseRuntime__GetEntry_hook(TextureDatabaseRuntime *a1, const cha
 #include "Mobile/MobileSettings/MobileSettings.h"
 #include "EntryExitManager.h"
 #include "Occlusion.h"
+#include "Radar.h"
+#include "CPad.h"
+#include "Mobile/MobileMenu/MobileMenu.h"
+#include "BulletTraces.h"
+#include "ProcObjectMan_c.h"
+#include "CModelInfoAccelerator.h"
+
+class InjectHooks;
 
 void InjectHooks()
 {
@@ -499,16 +488,21 @@ void InjectHooks()
     CAEAudioEntity::InjectHooks();
     CAEVehicleAudioEntity::InjectHooks();
     CMirrors::InjectHooks();
+    CMobileMenu::InjectHooks();
     CMobileSettings::InjectHooks();
+    // CPad::InjectHooks();
+    // ProcObjectMan_c::InjectHooks();
+    // CModelInfoAccelerator::InjectHooks(); // its not working..
 
     CWeapon::InjectHooks();
     CWeaponInfo::InjectHooks();
+    CBulletTraces::InjectHooks();
 
 	CHook::Write(g_libGTASA + (VER_x32 ? 0x678954 : 0x84F2D0), &Scene);
 
 #if !VER_x32 // mb all.. wtf crash x64?
     CHook::RET("_ZN11CPlayerInfo14LoadPlayerSkinEv");
-    CHook::RET("_ZN11CPopulation10InitialiseEv");
+    // CHook::RET("_ZN11CPopulation10InitialiseEv");
 #endif
 	CCamera::InjectHooks(); //
     CReferences::InjectHooks(); //
@@ -541,10 +535,10 @@ void InjectHooks()
 	CRQ_Commands::InjectHooks();
 	CTxdStore::InjectHooks();
 	CVisibilityPlugins::InjectHooks();
-	CAdjustableHUD::InjectHooks();
+	// CAdjustableHUD::InjectHooks();
 
 	// new
-	// CClouds::InjectHooks();
+	CClouds::InjectHooks();
 	CWeather::InjectHooks();
 	RenderBuffer::InjectHooks();
     CTimeCycle::InjectHooks();
@@ -555,7 +549,7 @@ void InjectHooks()
 	CVehicleModelInfo::InjectHooks();
 	//CPathFind::InjectHooks();
 	CSprite2d::InjectHooks();
-	//CFileLoader::InjectHooks();
+	// CFileLoader::InjectHooks();
 	CShadows::InjectHooks();
     //CPickups::InjectHooks();
 	CRenderer::InjectHooks();
@@ -786,10 +780,6 @@ void InstallSpecialHooks()
 	CHook::InlineHook("_ZN14MainMenuScreen6UpdateEf", &MainMenuScreen__Update_hook, &MainMenuScreen__Update);
 	CHook::InlineHook("_Z11OS_FileOpen14OSFileDataAreaPPvPKc16OSFileAccessType", &OS_FileOpen_hook, &OS_FileOpen);
 
-	CHook::InlineHook("_ZN16cHandlingDataMgr13FindExactWordEPcS0_ii", &cHandlingDataMgr__FindExactWord_hook, &cHandlingDataMgr__FindExactWord);
-
-	CHook::InstallPLT(g_libGTASA + (VER_x32 ? 0x0067125C : 0x842150), &cHandlingDataMgr__ConvertDataToGameUnits);
-
 	CHook::InlineHook("_Z19NVEventGetNextEventP7NVEventi", NVEventGetNextEvent_hook, &NVEventGetNextEvent_hooked);
 
     CHook::InlineHook("_Z15OS_ThreadLaunchPFjPvES_jPKci16OSThreadPriority", &custom_OS_ThreadLaunch, &orig_OS_ThreadLaunch);
@@ -845,7 +835,7 @@ void CPedDamageResponseCalculator__ComputeDamageResponse_hook(stPedDamageRespons
 		else {
 			CNetGame::sendGiveDamage(receiverId, thiz->iWeaponType, fDamage, bodypart);
 		}
-		CHUD::addGiveDamageNotify(receiverId, thiz->iWeaponType, fDamage, thiz->iBodyPart);
+		// CHUD::addGiveDamageNotify(receiverId, thiz->iWeaponType, fDamage, thiz->iBodyPart);
 	}
 
 	// player take damage
@@ -853,13 +843,12 @@ void CPedDamageResponseCalculator__ComputeDamageResponse_hook(stPedDamageRespons
 	{
 		char nick[MAX_PLAYER_NAME];
 		strcpy(nick, CPlayerPool::GetPlayerName(senderId));
-		CHUD::addTakeDamageNotify(CPlayerPool::GetPlayerName(senderId), thiz->iWeaponType, fDamage);
+		// CHUD::addTakeDamageNotify(CPlayerPool::GetPlayerName(senderId), thiz->iWeaponType, fDamage);
 
 		CNetGame::sendTakeDamage(senderId, thiz->iWeaponType, fDamage, bodypart);
 	}
 //	CPedDamageResponseCalculator__ComputeDamageResponse(thiz, pEntity, pDamageResponse, bSpeak);
 }
-
 
 RpMaterialList* (*_rpMaterialListDeinitialize)(RpMaterialList* matList);
 RpMaterialList* _rpMaterialListDeinitialize_hook(RpMaterialList* matList)
@@ -878,8 +867,8 @@ int RwFrameAddChild_hook(int a1, int a2)
 	return RwFrameAddChild(a1, a2);
 }
 
-int(*CUpsideDownCarCheck__IsCarUpsideDown)(uintptr* thiz, const CVehicleSamp* pVehicleToCheck);
-int CUpsideDownCarCheck__IsCarUpsideDown_hook(uintptr* thiz, const CVehicleSamp* pVehicleToCheck)
+int(*CUpsideDownCarCheck__IsCarUpsideDown)(uintptr* thiz, const CVehicleMP* pVehicleToCheck);
+int CUpsideDownCarCheck__IsCarUpsideDown_hook(uintptr* thiz, const CVehicleMP* pVehicleToCheck)
 {
     /* Passengers leave the vehicle out of fear if it overturns */
 
@@ -902,8 +891,8 @@ RwFrame* CClumpModelInfo_GetFrameFromId_Post(RwFrame* pFrameResult, RpClump* clu
     uintptr_t calledFrom = 0;
     GET_LR(calledFrom);
 
-    if (calledFrom == (VER_x32 ? 0x0058C61C : 0x6AFEE4)                // CVehicleSamp::SetWindowOpenFlag
-        || calledFrom == (VER_x32 ? 0x0058C644 : 0x6AFF18)             // CVehicleSamp::ClearWindowOpenFlag
+    if (calledFrom == (VER_x32 ? 0x0058C61C : 0x6AFEE4)                // CVehicleMP::SetWindowOpenFlag
+        || calledFrom == (VER_x32 ? 0x0058C644 : 0x6AFF18)             // CVehicleMP::ClearWindowOpenFlag
         || calledFrom == (VER_x32 ? 0x003885EC : 0x45FC40)             // CVehicleModelInfo::GetOriginalCompPosition
         || calledFrom == (VER_x32 ? 0x00387A28 : 0x45ECD0))            // CVehicleModelInfo::CreateInstance
         return nullptr;
@@ -970,7 +959,7 @@ int32 CAutomobile__ProcessEntityCollision_hook(CVehicle* thiz, CEntity* ent, CCo
 	if (pNetGame)
 	{
 		uint16_t vehId = CVehiclePool::FindIDFromGtaPtr(thiz);
-		CVehicleSamp* pVeh = CVehiclePool::GetAt(vehId);
+		CVehicleMP* pVeh = CVehiclePool::GetAt(vehId);
 		if (pVeh) {
 			if (pVeh->bHasSuspensionLines && pVeh->GetVehicleSubtype() == VEHICLE_SUBTYPE_CAR) {
 				pColData = CModelInfo::GetModelInfo(thiz->m_nModelIndex)->AsVehicleModelInfoPtr()->m_pColModel->m_pColData;
@@ -1039,7 +1028,7 @@ void MainMenuScreen__OnExit_hook()
 	//return CGame__Shutdown();
 }
 
-static CVehicleSamp* g_pLastProcessedVehicleMatrix = nullptr;
+static CVehicleMP* g_pLastProcessedVehicleMatrix = nullptr;
 static int g_iLastProcessedWheelVehicle = -1;
 
 void (*CMatrix__Rotate)(CMatrix* thiz, float a1, float a2, float a3);
@@ -1125,6 +1114,8 @@ void CAutomobile__PreRender_hook(CVehicle* thiz)
     if (pVeh) {
         pVeh->ProcessWheelsOffset();
         g_pLastProcessedVehicleMatrix = pVeh;
+        pVeh->RenderTurnLights();
+        // pVeh->m_pVehicle->DoSirenEffect(1, false);
 
         if (pVeh->neon.IsSet()) {
 			pVeh->neon.Render(pVeh->m_pVehicle);
@@ -1159,14 +1150,15 @@ void CTaskSimpleUseGun__RemoveStanceAnims_hook(uintptr* thiz, void* ped, float a
 void (*CCam__Process)(CCam*);
 void CCam__Process_hook(CCam* thiz)
 {
+    CFirstPersonCamera::Update();
+
     if (!CFirstPersonCamera::IsEnabled()) {
         CCam__Process(thiz);
         return;
     }
     CVector vecSpeed;
-    CVehicleSamp* veh = nullptr;
+    CVehicleMP* veh = nullptr;
 
-    CCamera& TheCamera = *reinterpret_cast<CCamera*>(g_libGTASA + (VER_x32 ? 0x00951FA8 : 0xBBA8D0));
     float& CAR_FOV_START_SPEED = *(float*)(g_libGTASA + (VER_x32 ? 0x006A9FD0 : 0x8855D4));
     float old = CAR_FOV_START_SPEED;
 
@@ -1193,14 +1185,11 @@ void CCam__Process_hook(CCam* thiz)
     {
         if (pNetGame)
         {
-            auto gtaPed = CLocalPlayer::GetPlayerPed()->m_pPed;
             if (auto pPed = CLocalPlayer::GetPlayerPed())
             {
-                TheCamera.m_uiTransitionDuration = 0xFFFFFFFF;
-                TheCamera.m_uiTransitionDurationTargetCoors = 0xFFFFFFFF;
-                TheCamera.m_bJust_Switched = false;
-
-                gtaPed->m_fAimingRotation = gtaPed->m_fCurrentRotation = atan2(TheCamera.m_aCams[0].Front.y, TheCamera.m_aCams[0].Front.x) - M_PI_2;
+                CCamera::Get().m_uiTransitionDuration = 0xFFFFFFFF;
+                CCamera::Get().m_uiTransitionDurationTargetCoors = 0xFFFFFFFF;
+                CCamera::Get().m_bJust_Switched = false;
 
                 CFirstPersonCamera::ProcessCameraOnFoot(thiz, pPed);
             }
@@ -1213,9 +1202,9 @@ void CCam__Process_hook(CCam* thiz)
             CPedSamp* pPed = CLocalPlayer::GetPlayerPed();
             if (pPed)
             {
-                TheCamera.m_uiTransitionDuration = 0xFFFFFFFF;
-                TheCamera.m_uiTransitionDurationTargetCoors = 0xFFFFFFFF;
-                TheCamera.m_bJust_Switched = false;
+                CCamera::Get().m_uiTransitionDuration = 0xFFFFFFFF;
+                CCamera::Get().m_uiTransitionDurationTargetCoors = 0xFFFFFFFF;
+                CCamera::Get().m_bJust_Switched = false;
 
                 CFirstPersonCamera::ProcessCameraInVeh(thiz, pPed, veh);
             }
@@ -1321,13 +1310,13 @@ int CTaskSimpleGetUp__ProcessPed_hook(uintptr_t* thiz, CPed* ped)
 	return res;
 }
 
-int (*RwResourcesFreeResEntry)(int);
+int (*RwResourcesFreeResEntry_orig)(int);
 int RwResourcesFreeResEntry_hook(int a1)
 {
 	int result; // r0
 
 	if (a1)
-		result = RwResourcesFreeResEntry(a1);
+		result = RwResourcesFreeResEntry_orig(a1);
 	else
 		result = 0;
 	return result;
@@ -1545,6 +1534,8 @@ long long CAnimBlendNode__FindKeyFrame_hook(CAnimBlendNode *thiz, float fCurrent
 }
 
 #include "../SkyBox.h"
+#include "Widgets/WidgetButton.h"
+
 int g_iLastRenderedObject;
 
 void(*CEntity__Render)(CEntity*);
@@ -1594,12 +1585,6 @@ int CRadar__SetCoordBlip_hook(int r0, float X, float Y, float Z, int r4, int r5,
     return CRadar__SetCoordBlip(r0, X, Y, Z, r4, r5, name);
 }
 
-void(*FxInfoGroundCollide_c__GetValue)();
-void FxInfoGroundCollide_c__GetValue_hook()
-{
-
-}
-
 uint32_t(*HashString)(const char* s);
 uint32_t HashString_hook(const char* s)
 {
@@ -1613,6 +1598,130 @@ uint32_t HashString_hook(const char* s)
     return (hashPart + (hashPart >> 5));
 }
 
+// Fixes farclip glitch with wall (wardumb be like)
+void(*emu_DistanceFogSetup)(float minDistance, float maxDistance, float red, float green, float blue);
+void emu_DistanceFogSetup_hook(float minDistance, float maxDistance, float red, float green, float blue)
+{
+    emu_DistanceFogSetup(0.8f * minDistance, 0.95f * maxDistance, red, green, blue);
+}
+
+void (*CWidgetButtonSprint_CWidgetButtonSprint)(uintptr_t *thiz, uint8_t *pszSprite, CTouchInterface::WidgetPositionIDs *WidgetPos);
+void CWidgetButtonSprint_CWidgetButtonSprint_hook(uintptr_t *thiz, uint8_t *pszSprite, CTouchInterface::WidgetPositionIDs *WidgetPos)
+{
+    CWidgetButtonSprint_CWidgetButtonSprint(thiz, (uint8_t*)"", WidgetPos);
+}
+
+RwImage* (*RsGrabScreen)(RwCamera* camera);
+RwImage* RsGrabScreen_hook(RwCamera* camera)
+{
+    if(!camera || !camera->frameBuffer) return NULL;
+
+    RwImage* newImage = RwImageCreate(camera->frameBuffer->width, camera->frameBuffer->height, 32);
+    if(newImage)
+    {
+        RwImageAllocatePixels(newImage);
+        RwImageSetFromRaster(newImage, camera->frameBuffer);
+    }
+    return newImage;
+}
+
+void JPegCompressScreenToFile(RwCamera* pCamera, const char* pFilename){
+    return CHook::CallFunction<void>("_Z24JPegCompressScreenToFileP8RwCameraPKc", pCamera, pFilename);
+}
+
+// TODO: move to CWeapon::Fire
+RwCamera* (*CWeapon_TakePhotograph)(CWeapon *thiz, CEntity *pEntity, CVector *cameraPos);
+RwCamera* CWeapon_TakePhotograph_hook(CWeapon *thiz, CEntity *pEntity, CVector *cameraPos)
+{
+    static uint32_t nextAllowedPic = 0;
+
+    if(nextAllowedPic < CTimer::m_snTimeInMilliseconds)
+    {
+        nextAllowedPic = CTimer::m_snTimeInMilliseconds + 5000;
+
+        CFileMgr::SetDirMyDocuments();
+
+        std::string path = "screenshot_test.jpg";
+        std::vector<char> filename(path.begin(), path.end());
+        filename.push_back('\0');
+
+        JPegCompressScreenToFile(Scene.m_pRwCamera, filename.data());
+
+        CFileMgr::SetDir("");
+
+        Log("Screenshot saved!");
+    }
+
+    return CWeapon_TakePhotograph(thiz, pEntity, cameraPos);
+}
+
+void (*jcopy_sample_rows)(uint8_t **input_array, int source_row, uint8_t **output_array, int dest_row, int num_rows, uint num_cols);
+void jcopy_sample_rows_hook(uint8_t **input_array, int source_row, uint8_t **output_array, int dest_row, int num_rows, uint num_cols)
+{
+    jcopy_sample_rows(input_array, source_row, output_array, dest_row, num_rows, num_cols);
+    Log("jpeg_samplecopy: dest_row (i) = %d, num_rows (height) = %d, num_cols (width) = %d", source_row, dest_row, num_cols);
+}
+
+void (*LoadSceneForPathNodes)(CPathFind *thiz, CVector CenterCoors);
+void LoadSceneForPathNodes_hook(CPathFind *thiz, CVector CenterCoors)
+{
+    static auto* ToBeStreamed = (uint8_t*)(g_libGTASA + (VER_x32 ? 0x007AED74 : 0x99053C));
+    memset(ToBeStreamed, 0, 64);
+
+    auto* player = CLocalPlayer::GetPlayerPed();
+
+    if(player) {
+        thiz->MarkRegionsForCoors(CenterCoors, 4300.0f);
+        thiz->MarkRegionsForCoors(player->m_pPed->GetPosition(), 4300.0f);
+    } else {
+        thiz->MarkRegionsForCoors(CenterCoors, 4300.0f);
+    }
+
+    for(int i = 0; i < 64; ++i) {
+        if(ToBeStreamed[i] != 0)
+            CStreaming::RequestModel(DATToModelId(i), 0);
+    }
+}
+
+void (*UpdateStreaming)(CPathFind* thiz, bool forceLoad);
+void UpdateStreaming_hook(CPathFind* thiz, bool forceLoad)
+{
+    static auto* ExtraPathsNeeded = (uint8_t*)(g_libGTASA + (VER_x32 ? 0x007AEE04 : 0x9905C8));
+    static auto* ExtraPathPos = (CVector*)(g_libGTASA + (VER_x32 ? 0x007AEDF8 : 0x9905BC));
+    if(!forceLoad && !*ExtraPathsNeeded && (CTimer::m_snTimeInMilliseconds ^ CTimer::m_snPreviousTimeInMilliseconds) < 512)
+        return;
+
+    static auto* ToBeStreamed = (uint8_t*)(g_libGTASA + (VER_x32 ? 0x007AED74 : 0x99053C));
+    memset(ToBeStreamed, 0, 64);
+
+    static CVector corners[4] = {
+            { -3000.0f, -3000.0f, 20.0f },
+            { -3000.0f,  3000.0f, 20.0f },
+            {  3000.0f, -3000.0f, 20.0f },
+            {  3000.0f,  3000.0f, 20.0f }
+    };
+
+    for(const auto & corner : corners)
+        thiz->MarkRegionsForCoors(corner, 4300.0f);
+
+    auto* player = CLocalPlayer::GetPlayerPed();
+    if(player) thiz->MarkRegionsForCoors(player->m_pPed->GetPosition(), 4300.0f);
+
+    if(*ExtraPathsNeeded) {
+        thiz->MarkRegionsForCoors(ExtraPathPos, 4300.0f);
+        *ExtraPathsNeeded = false;
+    }
+
+    for(int i = 0; i < 64; ++i) {
+        if(ToBeStreamed[i] != 0) {
+            if(thiz->pTNodes[i] == nullptr)
+                CStreaming::RequestModel(DATToModelId(i), STREAMING_KEEP_IN_MEMORY);
+        } else if(thiz->pTNodes[i] != nullptr) {
+            CStreaming::RemoveModel(DATToModelId(i));
+        }
+    }
+}
+
 void InstallHooks()
 {
     CHook::InstallPLT(g_libGTASA + (VER_x32 ? 0x66F91C : 0x83F8A0), &CFireManager__ExtinguishPointWithWater_hook, &CFireManager__ExtinguishPointWithWater);
@@ -1624,9 +1733,16 @@ void InstallHooks()
 
     // CHook::InlineHook("_ZN6CRadar12SetCoordBlipE9eBlipType7CVectorj12eBlipDisplayPc", &CRadar__SetCoordBlip_hook, &CRadar__SetCoordBlip);
 
+    CHook::InlineHook("_ZN9CPathFind21LoadSceneForPathNodesE7CVector", &LoadSceneForPathNodes_hook, &LoadSceneForPathNodes);
+    CHook::InlineHook("_ZN9CPathFind15UpdateStreamingEb", &UpdateStreaming_hook, &UpdateStreaming);
+
     // ---------- JPATCH ----------
-    // CHook::InlineHook("_ZN21FxInfoGroundCollide_c8GetValueEffffhPv", &FxInfoGroundCollide_c__GetValue_hook, &FxInfoGroundCollide_c__GetValue);
-    CHook::InlineHook("_Z10HashStringPKc", &HashString_hook, &HashString);
+    // CHook::InlineHook("_Z10HashStringPKc", &HashString_hook, &HashString);
+    CHook::InlineHook("_Z20emu_DistanceFogSetupfffff", &emu_DistanceFogSetup_hook, &emu_DistanceFogSetup);
+    CHook::InlineHook("_ZN19CWidgetButtonSprintC2EPKcRK14WidgetPosition", &CWidgetButtonSprint_CWidgetButtonSprint_hook, &CWidgetButtonSprint_CWidgetButtonSprint);
+    // CHook::InlineHook("_Z12psGrabScreenP8RwCamera", &RsGrabScreen_hook, &RsGrabScreen);
+    // CHook::InlineHook("_ZN7CWeapon14TakePhotographEP7CEntityP7CVector", &CWeapon_TakePhotograph_hook, &CWeapon_TakePhotograph);
+    // CHook::InlineHook("_Z17jcopy_sample_rowsPPhiS0_iij", &jcopy_sample_rows_hook, &jcopy_sample_rows);
     // ---------- JPATCH END ----------
 
     // WTFBUG lol
@@ -1697,8 +1813,7 @@ void InstallHooks()
 
 	CHook::InlineHook("_ZN16CTaskSimpleGetUp10ProcessPedEP4CPed", &CTaskSimpleGetUp__ProcessPed_hook, &CTaskSimpleGetUp__ProcessPed); // CTaskSimpleGetUp::ProcessPed
 
-
-	CHook::InlineHook("_Z23RwResourcesFreeResEntryP10RwResEntry", &RwResourcesFreeResEntry_hook, &RwResourcesFreeResEntry);
+	CHook::InlineHook("_Z23RwResourcesFreeResEntryP10RwResEntry", &RwResourcesFreeResEntry_hook, &RwResourcesFreeResEntry_orig);
 
     auto* RQCaps = (RQCapabilities*)(g_libGTASA + (VER_x32 ? 0x6B8B9C : 0x896130));
     if (RQCaps->hasTextureCompressionPVRTCCap) {
