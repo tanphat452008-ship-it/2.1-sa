@@ -4,6 +4,7 @@
 
 #include "HUD.h"
 #include <jni.h>
+#include <vector>
 
 #include "main.h"
 
@@ -43,69 +44,83 @@ jobject CHUD::thiz = nullptr;
 jmethodID jUpdateHudInfo;
 
 void CHUD::ChangeChatTextSize(int size) {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
-    if(!env)return;
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if(!env || !thiz) return;
 
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "ChangeChatFontSize", "(I)V");
+    if (!clazz) return;
 
-    env->CallVoidMethod(thiz, method, size);
+    jmethodID method = env->GetMethodID(clazz, "ChangeChatFontSize", "(I)V");
+    if (method) {
+        env->CallVoidMethod(thiz, method, size);
+    }
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_hud_HudManager_HudInit(JNIEnv *env, jobject thiz) {
+    if (!env || !thiz) return;
+
+    if (CHUD::thiz) {
+        env->DeleteGlobalRef(CHUD::thiz);
+    }
 
     CHUD::thiz = env->NewGlobalRef(thiz);
-    jUpdateHudInfo = env->GetMethodID(env->GetObjectClass(thiz), "updateAmmo", "(III)V");
+    jclass clazz = env->GetObjectClass(thiz);
+    if (clazz) {
+        jUpdateHudInfo = env->GetMethodID(clazz, "updateAmmo", "(III)V");
+    }
 
     CHUD::ToggleProgressTexts(CSettings::m_Settings.iHPArmourText);
     CHUD::ChangeChatTextSize(CSettings::m_Settings.iChatFontSize);
-
 }
 
 void CHUD::toggleAll(bool toggle, bool chat, bool onlyVisual)
 {
-    if(toggle == bIsShow)
-    {
-        return;
-    }
+    if(toggle == bIsShow) return;
 
     bIsShow = toggle;
     bIsOnlyVisualOff = onlyVisual;
-   // CGame::ToggleHUDElement(HUD_ELEMENT_BUTTONS, toggle);
 
-   // pNetGame->GetPlayerPool()->GetLocalPlayer()->GetPlayerPed()->TogglePlayerControllable(toggle, true);
     CGame::ToggleHUDElement(HUD_ELEMENT_FPS, toggle);
 
-    JNIEnv *env = g_pJavaWrapper->GetEnv();
+    JNIEnv *env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
-    if (!env) {
-        Log("No env");
-        return;
-    }
     jclass clazz = env->GetObjectClass(thiz);
+    if (!clazz) return;
 
     jmethodID method = env->GetMethodID(clazz, "toggleAll", "(ZZ)V");
-    env->CallVoidMethod(thiz, method, toggle, chat);
+    if (method) {
+        env->CallVoidMethod(thiz, method, toggle, chat);
+    }
 
-    *(uint8_t*)(g_libGTASA + (VER_x32 ? 0x00819D88 : 0x9FF3A8)) = toggle ? 1 : 0;
+    if (g_libGTASA) {
+        *(uint8_t*)(g_libGTASA + (VER_x32 ? 0x00819D88 : 0x9FF3A8)) = toggle ? 1 : 0;
+    }
 }
 
 void CHUD::toggleLockButton(bool toggle)
 {
     bIsShowLockButt = toggle;
 
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
+
     jclass clazz = env->GetObjectClass(thiz);
+    if (!clazz) return;
 
     jmethodID ToggleLockVehicleButton = env->GetMethodID(clazz, "toggleLockButton", "(Z)V");
-    env->CallVoidMethod(thiz, ToggleLockVehicleButton, toggle);
+    if (ToggleLockVehicleButton) {
+        env->CallVoidMethod(thiz, ToggleLockVehicleButton, toggle);
+    }
 }
 
 bool CHUD::NeededRenderPassengerButton() {
     CPedSamp* pPed = CGame::FindPlayerPed();
-    if(bIsShowEnterExitButt && !pPed->m_pPed->IsInVehicle())
+    if (!pPed || !pPed->m_pPed) return false;
+
+    if (bIsShowEnterExitButt && !pPed->m_pPed->IsInVehicle())
         return true;
 
     return false;
@@ -113,173 +128,135 @@ bool CHUD::NeededRenderPassengerButton() {
 
 void CHUD::updateAmmo()
 {
-    /*CPedSamp* pPed = CGame::FindPlayerPed();
-
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
-
-    env->CallVoidMethod(thiz, jUpdateHudInfo,
-                        (int)pPed->m_pPed->m_aWeapons[pPed->m_pPed->m_nActiveWeaponSlot].m_nType,
-                        (int)pPed->m_pPed->m_aWeapons[pPed->m_pPed->m_nActiveWeaponSlot].m_nTotalAmmo,
-                        (int)pPed->m_pPed->m_aWeapons[pPed->m_pPed->m_nActiveWeaponSlot].dwAmmoInClip
-                        );*/
 }
 
 void CHUD::updateBars() {
-    /*auto env = g_pJavaWrapper->GetEnv();
-    auto pPed = CGame::FindPlayerPed();
-
-    jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "updateBars", "(III)V");
-
-    env->CallVoidMethod(thiz, method,
-                        (int)pPed->GetHealth(),
-                        (int)pPed->GetArmour(),
-                        (int)CHUD::iSatiety
-    );*/
 }
+
 void CHUD::UpdateWanted()
 {
-    /*JNIEnv* env = g_pJavaWrapper->GetEnv();
-
-    if (!env)
-    {
-        Log("No env");
-        return;
-    }
-    jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "UpdateWanted", "(I)V");
-
-    env->CallVoidMethod(thiz, method, iWantedLevel);*/
 }
 
 void CHUD::updateLevelInfo(int level, int currentexp, int maxexp)
 {
-    /*JNIEnv* env = g_pJavaWrapper->GetEnv();
-
-    if (!env)
-    {
-        Log("No env");
-        return;
-    }
-    jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "updateLevelInfo", "(III)V");
-
-    env->CallVoidMethod(thiz, method, level, currentexp, maxexp);*/
 }
 
 void CHUD::showUpdateTargetNotify(int type, char *text)
 {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    if (!text) return;
 
-    if (!env)
-    {
-        Log("No env");
-        return;
-    }
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
+
     jclass clazz = env->GetObjectClass(thiz);
+    if (!clazz) return;
+
     jmethodID method = env->GetMethodID(clazz, "showUpdateTargetNotify", "(ILjava/lang/String;)V");
+    if (!method) return;
 
     jclass strClass = env->FindClass("java/lang/String");
+    if (!strClass) return;
+
     jmethodID ctorID = env->GetMethodID(strClass, "<init>", "([BLjava/lang/String;)V");
     jstring encoding = env->NewStringUTF("UTF-8");
 
-    jbyteArray bytes = env->NewByteArray(strlen(text));
-    env->SetByteArrayRegion(bytes, 0, strlen(text), (jbyte*)text);
+    size_t len = strlen(text);
+    jbyteArray bytes = env->NewByteArray(len);
+    if (!bytes) {
+        env->DeleteLocalRef(encoding);
+        return;
+    }
+
+    env->SetByteArrayRegion(bytes, 0, len, (jbyte*)text);
     jstring jtext = (jstring) env->NewObject(strClass, ctorID, bytes, encoding);
-    env->CallVoidMethod(thiz, method, type, jtext);
+    
+    if (jtext) {
+        env->CallVoidMethod(thiz, method, type, jtext);
+        env->DeleteLocalRef(jtext);
+    }
+
+    env->DeleteLocalRef(bytes);
     env->DeleteLocalRef(encoding);
 }
 
 void CHUD::hideTargetNotify()
 {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
-    if (!env)
-    {
-        Log("No env");
-        return;
-    }
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "hideTargetNotify", "()V");
+    if (!clazz) return;
 
-    env->CallVoidMethod(thiz, method);
+    jmethodID method = env->GetMethodID(clazz, "hideTargetNotify", "()V");
+    if (method) {
+        env->CallVoidMethod(thiz, method);
+    }
 }
 
 void CHUD::toggleGps(bool toggle)
 {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
-    if (!env)
-    {
-        Log("No env");
-        return;
-    }
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "toggleGps", "(Z)V");
+    if (!clazz) return;
 
-    env->CallVoidMethod(thiz, method, toggle);
+    jmethodID method = env->GetMethodID(clazz, "toggleGps", "(Z)V");
+    if (method) {
+        env->CallVoidMethod(thiz, method, toggle);
+    }
 }
 
 void CHUD::toggleServerLogo(bool toggle)
 {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
-    if (!env)
-    {
-        Log("No env");
-        return;
-    }
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "toggleServerLogo", "(Z)V");
+    if (!clazz) return;
 
-    env->CallVoidMethod(thiz, method, toggle);
+    jmethodID method = env->GetMethodID(clazz, "toggleServerLogo", "(Z)V");
+    if (method) {
+        env->CallVoidMethod(thiz, method, toggle);
+    }
 }
 
 void CHUD::toggleGreenZone(bool toggle)
 {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
-    if (!env)
-    {
-        Log("No env");
-        return;
-    }
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "toggleGreenZone", "(Z)V");
+    if (!clazz) return;
 
-    env->CallVoidMethod(thiz, method, toggle);
+    jmethodID method = env->GetMethodID(clazz, "toggleGreenZone", "(Z)V");
+    if (method) {
+        env->CallVoidMethod(thiz, method, toggle);
+    }
 }
 
 void CHUD::UpdateMoney()
 {
-    /*JNIEnv* env = g_pJavaWrapper->GetEnv();
-
-    if (!env)
-    {
-        Log("No env");
-        return;
-    }
-    jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "updateMoney", "(I)V");
-
-    env->CallVoidMethod(thiz, method, iLocalMoney);*/
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_hud_HudManager_ClickLockVehicleButton(JNIEnv *env, jobject thiz) {
-    pNetGame->SendChatCommand("/lock");
+    if (pNetGame) {
+        pNetGame->SendChatCommand("/lock");
+    }
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_Speedometer_ClickSpedometr(JNIEnv *env, jobject thiz, jint turn_id,
                                                       jboolean toggle) {
+    if (!pNetGame || !pNetGame->GetRakClient()) return;
+
     uint8_t packet = ID_CUSTOM_RPC;
     uint8_t RPC = RPC_TURN_SIGNAL;
     uint8_t button = turn_id;
     uint8_t toggle_ = toggle;
-
 
     RakNet::BitStream bsSend;
     bsSend.Write(packet);
@@ -291,6 +268,8 @@ Java_com_russia_game_gui_Speedometer_ClickSpedometr(JNIEnv *env, jobject thiz, j
 
 void CNetGame::packetSalary(Packet* p)
 {
+    if (!p || !p->data) return;
+
     RakNet::BitStream bs((unsigned char*)p->data, p->length, false);
     uint8_t packetID;
     uint32_t rpcID;
@@ -304,50 +283,70 @@ void CNetGame::packetSalary(Packet* p)
     bs.Read(lvl);
     bs.Read(exp);
 
-
     CHUD::UpdateSalary(salary, lvl, exp);
 }
 
 void CHUD::UpdateSalary(int salary, int lvl, float exp)
 {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID UpdateSalary = env->GetMethodID(clazz, "updateSalary", "(IIF)V");
+    if (!clazz) return;
 
-    env->CallVoidMethod(thiz, UpdateSalary, salary, lvl, exp);
+    jmethodID UpdateSalary = env->GetMethodID(clazz, "updateSalary", "(IIF)V");
+    if (UpdateSalary) {
+        env->CallVoidMethod(thiz, UpdateSalary, salary, lvl, exp);
+    }
 }
 
 void CHUD::SetChatInput(const char ch[])
 {
-    static char msg_utf[1024];
-    cp1251_to_utf8(msg_utf, ch);
-    JNIEnv* env = CJavaWrapper::GetEnv();
+    if (!ch) return;
 
-    jstring jch = env->NewStringUTF(msg_utf);
+    // Chống Buffer Overflow và Thread-Race bằng bộ nhớ động cục bộ
+    size_t len = strlen(ch) * 3 + 1;
+    std::vector<char> msg_utf(len);
+    cp1251_to_utf8(msg_utf.data(), ch);
+
+    JNIEnv* env = CJavaWrapper::GetEnv();
+    if (!env || !thiz) return;
+
+    jstring jch = env->NewStringUTF(msg_utf.data());
+    if (!jch) return;
 
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID AddToChatInput = env->GetMethodID(clazz, "AddToChatInput", "(Ljava/lang/String;)V");
-
-    env->CallVoidMethod(thiz, AddToChatInput, jch);
+    if (clazz) {
+        jmethodID AddToChatInput = env->GetMethodID(clazz, "AddToChatInput", "(Ljava/lang/String;)V");
+        if (AddToChatInput) {
+            env->CallVoidMethod(thiz, AddToChatInput, jch);
+        }
+    }
     env->DeleteLocalRef(jch);
 }
 
 void CHUD::AddChatMessage(const char msg[])
 {
-    if(!thiz)return;
+    if(!thiz || !msg) return;
 
-    static char msg_utf[1024];
-    cp1251_to_utf8(msg_utf, msg);
+    // Chống Buffer Overflow và Thread-Race bằng bộ nhớ động cục bộ
+    size_t len = strlen(msg) * 3 + 1;
+    std::vector<char> msg_utf(len);
+    cp1251_to_utf8(msg_utf.data(), msg);
 
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
-    //
-    jstring jmsg = env->NewStringUTF( msg_utf );
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env) return;
+
+    jstring jmsg = env->NewStringUTF(msg_utf.data());
+    if (!jmsg) return;
 
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID AddChatMessage = env->GetMethodID(clazz, "AddChatMessage", "(Ljava/lang/String;)V");
-
-    env->CallVoidMethod(thiz, AddChatMessage, jmsg);
+    if (clazz) {
+        jmethodID AddChatMessage = env->GetMethodID(clazz, "AddChatMessage", "(Ljava/lang/String;)V");
+        if (AddChatMessage) {
+            env->CallVoidMethod(thiz, AddChatMessage, jmsg);
+        }
+    }
     env->DeleteLocalRef(jmsg);
 }
 
@@ -366,60 +365,85 @@ void CHUD::addGiveDamageNotify(PLAYERID id, int weaponId, float damage, ePedPiec
     }
 
     JNIEnv* env = CJavaWrapper::GetEnv();
+    if (!env || !thiz) return;
 
-    jstring jnick;
+    jstring jnick = nullptr;
 
     if(CActorPool::GetAt(id))
         jnick = env->NewStringUTF( CActorPool::GetName(id) );
     else
         jnick = env->NewStringUTF( CPlayerPool::GetPlayerName(id) );
 
+    if (!jnick) return;
+
     jstring jweap = env->NewStringUTF( CUtil::GetWeaponName(weaponId) );
     jstring jbodypartname = env->NewStringUTF(pedPieceNames[bodypart].c_str());
 
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "addGiveDamageNotify", "(Ljava/lang/String;Ljava/lang/String;FLjava/lang/String;)V");
+    if (clazz) {
+        jmethodID method = env->GetMethodID(clazz, "addGiveDamageNotify", "(Ljava/lang/String;Ljava/lang/String;FLjava/lang/String;)V");
+        if (method) {
+            env->CallVoidMethod(thiz, method, jnick, jweap, fLastGiveDamage, jbodypartname);
+        }
+    }
 
-    env->CallVoidMethod(thiz, method, jnick, jweap, fLastGiveDamage, jbodypartname);
     env->DeleteLocalRef(jnick);
-    env->DeleteLocalRef(jweap);
-    env->DeleteLocalRef(jbodypartname);
+    if (jweap) env->DeleteLocalRef(jweap);
+    if (jbodypartname) env->DeleteLocalRef(jbodypartname);
 }
 
 void CHUD::addTakeDamageNotify(char nick[], int weaponId, float damage)
 {
-    if(!CSettings::m_Settings.iIsEnableDamageInformer) return;
+    if(!CSettings::m_Settings.iIsEnableDamageInformer || !nick) return;
 
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
+
     if(damage > 200) damage = 200.0f;
     jstring jnick = env->NewStringUTF( nick );
+    if (!jnick) return;
+
     jstring jweap = env->NewStringUTF( CUtil::GetWeaponName(weaponId) );
 
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID method = env->GetMethodID(clazz, "addTakeDamageNotify", "(Ljava/lang/String;Ljava/lang/String;F)V");
+    if (clazz) {
+        jmethodID method = env->GetMethodID(clazz, "addTakeDamageNotify", "(Ljava/lang/String;Ljava/lang/String;F)V");
+        if (method) {
+            env->CallVoidMethod(thiz, method, jnick, jweap, damage);
+        }
+    }
 
-    env->CallVoidMethod(thiz, method, jnick, jweap, damage);
     env->DeleteLocalRef(jnick);
-    env->DeleteLocalRef(jweap);
+    if (jweap) env->DeleteLocalRef(jweap);
 }
 
 void CHUD::ToggleProgressTexts(bool toggle)
 {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
     jclass clazz = env->GetObjectClass(thiz);
+    if (!clazz) return;
+
     jmethodID method = env->GetMethodID(clazz, "toggleProgressTexts", "(Z)V");
-    env->CallVoidMethod(thiz, method, toggle);
+    if (method) {
+        env->CallVoidMethod(thiz, method, toggle);
+    }
 }
 
 void CHUD::ToggleChat(bool toggle){
     bIsShowChat = toggle;
 
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
     jclass clazz = env->GetObjectClass(thiz);
+    if (!clazz) return;
+
     jmethodID ToggleChat = env->GetMethodID(clazz, "ToggleChat" , "(Z)V");
-    env->CallVoidMethod(thiz, ToggleChat, toggle);
+    if (ToggleChat) {
+        env->CallVoidMethod(thiz, ToggleChat, toggle);
+    }
 }
 
 extern "C"
@@ -435,32 +459,41 @@ Java_com_russia_game_gui_hud_HudManager_SetRadarBgPos(JNIEnv *env, jobject thiz,
 
 void CHUD::ToggleChatInput(bool toggle)
 {
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
-
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !thiz) return;
 
     jclass clazz = env->GetObjectClass(thiz);
-    jmethodID ToggleChatInput = env->GetMethodID(clazz, "ToggleChatInput", "(Z)V");
+    if (!clazz) return;
 
-    env->CallVoidMethod(thiz, ToggleChatInput, toggle);
+    jmethodID ToggleChatInput = env->GetMethodID(clazz, "ToggleChatInput", "(Z)V");
+    if (ToggleChatInput) {
+        env->CallVoidMethod(thiz, ToggleChatInput, toggle);
+    }
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_hud_Chat_SendChatMessage(JNIEnv *env, jobject thiz, jbyteArray str) {
+    if (!str) return;
+
+    // AN TOÀN CHUẨN: Chặn gửi tin nhắn nếu game chưa tạo hoặc người chơi chưa Spawn (đang ở màn hình Login/Đăng ký)
+    if (!pNetGame || !pNetGame->GetPlayerPool() || !pNetGame->GetPlayerPool()->GetLocalPlayer()) return;
+
     jbyte* pMsg = env->GetByteArrayElements(str, nullptr);
+    if (!pMsg) return;
+
     jsize length = env->GetArrayLength(str);
+    if (length <= 0) {
+        env->ReleaseByteArrayElements(str, pMsg, JNI_ABORT);
+        return;
+    }
 
     std::string szStr((char*)pMsg, length);
-    //const char *inputText = pEnv->GetStringUTFChars(str, nullptr);
 
-    if(pNetGame) {
-        CGame::PostToMainThread([=]{
-            CKeyBoard::m_sInput = szStr;
-            CKeyBoard::Send();
-        });
-       // pNetGame->SendChatMessage(const_cast<char *>(szStr.c_str()));
-
-    }
+    CGame::PostToMainThread([szStr]{
+        CKeyBoard::m_sInput = szStr;
+        CKeyBoard::Send();
+    });
 
     env->ReleaseByteArrayElements(str, pMsg, JNI_ABORT);
 }
@@ -469,7 +502,7 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_hud_HudManager_clickCameraMode(JNIEnv *env, jobject thiz) {
     CPedSamp *pPed = CLocalPlayer::GetPlayerPed();
-    if(!pPed) return;
+    if(!pPed || !pPed->m_pPed) return;
 
     if(CLocalPlayer::IsSpectating())
         return;
@@ -481,53 +514,58 @@ Java_com_russia_game_gui_hud_HudManager_clickCameraMode(JNIEnv *env, jobject thi
         CFirstPersonCamera::Toggle();
     }
 }
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_hud_HudManager_clickMultText(JNIEnv *env, jobject thiz) {
-    pNetGame->SendChatCommand("/action");
+    if (pNetGame) {
+        pNetGame->SendChatCommand("/action");
+    }
 }
 
 void CNetGame::packetUpdateSatiety(Packet* p)
 {
-    RakNet::BitStream bs((unsigned char*)p->data, p->length, false);
+    if (!p || !p->data) return;
 
+    RakNet::BitStream bs((unsigned char*)p->data, p->length, false);
     bs.IgnoreBits(40); // skip packet and rpc id
 
     uint8_t value;
-
     bs.Read(value);
 
     CHUD::iSatiety = value;
-
     CHUD::updateBars();
 }
 
 void CNetGame::packetTorpedoButt(Packet* p)
 {
-    RakNet::BitStream bs((unsigned char*)p->data, p->length, false);
+    if (!p || !p->data) return;
 
+    RakNet::BitStream bs((unsigned char*)p->data, p->length, false);
     bs.IgnoreBits(40); // skip packet and rpc id
 
     uint8_t value;
-
     bs.Read(value);
 
-    JNIEnv* env = g_pJavaWrapper->GetEnv();
-
+    JNIEnv* env = g_pJavaWrapper ? g_pJavaWrapper->GetEnv() : nullptr;
+    if (!env || !CHUD::thiz) return;
 
     jclass clazz = env->GetObjectClass(CHUD::thiz);
+    if (!clazz) return;
+
     jmethodID method = env->GetMethodID(clazz, "toggleTorpedoButt", "(Z)V");
-
-    env->CallVoidMethod(CHUD::thiz, method, value);
-
+    if (method) {
+        env->CallVoidMethod(CHUD::thiz, method, value);
+    }
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_hud_HudManager_sendTorpedo(JNIEnv *env, jobject thiz) {
+    if (!pNetGame || !pNetGame->GetRakClient()) return;
+
     uint8_t packet = ID_CUSTOM_RPC;
     uint8_t RPC = 80;
-
 
     RakNet::BitStream bsSend;
     bsSend.Write(packet);
@@ -535,6 +573,7 @@ Java_com_russia_game_gui_hud_HudManager_sendTorpedo(JNIEnv *env, jobject thiz) {
     bsSend.Write(1);
     pNetGame->GetRakClient()->Send(&bsSend, SYSTEM_PRIORITY, RELIABLE_SEQUENCED, 0);
 }
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_russia_game_gui_hud_HudManager_nativeSetRadarPos(JNIEnv *env, jobject thiz, jfloat x1,
